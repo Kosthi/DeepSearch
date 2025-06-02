@@ -3,8 +3,8 @@
 #include <iostream>
 #include <string>
 
-#include "builder_factory.h"
-#include "searcher.h"
+#include "graph/builder_factory.h"
+#include "searcher/searcher.h"
 
 using namespace deepsearch::core;
 using namespace deepsearch::graph;

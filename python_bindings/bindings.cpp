@@ -7,9 +7,11 @@
 #include <omp.h>
 #endif
 
-#include "hnsw/builder.h"
-#include "hnsw/hnsw.h"
-#include "searcher.h"
+#include "core/interfaces.h"
+#include "graph/builder_factory.h"
+#include "graph/graph.h"
+#include "quantization/fp32_quant.h"
+#include "searcher/searcher.h"
 
 namespace py = pybind11;
 
@@ -62,10 +64,10 @@ void parallel_for(size_t n, int num_threads, Func f) {
 // 3. Graph wrapper
 // -----------------------------------------------------------------------------
 struct Graph {
-  deepsearch::Graph<int> graph;
+  deepsearch::graph::Graph graph;
 
   Graph() = default;
-  explicit Graph(const deepsearch::Graph<int>& graph) : graph(graph) {}
+  explicit Graph(const deepsearch::graph::Graph& graph) : graph(graph) {}
   explicit Graph(const std::string& filename) { graph.load(filename); }
 
   void save(const std::string& filename) { graph.save(filename); }
@@ -76,7 +78,9 @@ struct Graph {
 // 4. Index wrapper
 // -----------------------------------------------------------------------------
 struct Index {
-  std::unique_ptr<deepsearch::Builder> idx;
+  std::unique_ptr<deepsearch::graph::GraphBuilder<float>> builder;
+  deepsearch::core::DistanceType distance_type_;
+  size_t dim_;
 
   Index(const std::string& type, int dim, const std::string& metric, int R = 32,
         int L = 200) {
@@ -84,8 +88,27 @@ struct Index {
     if (R <= 0) throw py::value_error("`R` must be positive");
     if (L < 0) throw py::value_error("`L` must be non-negative");
 
+    dim_ = dim;
+
+    // 解析距离类型
+    if (metric == "L2") {
+      distance_type_ = deepsearch::core::DistanceType::L2;
+    } else if (metric == "IP") {
+      distance_type_ = deepsearch::core::DistanceType::IP;
+    } else if (metric == "COSINE") {
+      distance_type_ = deepsearch::core::DistanceType::COSINE;
+    } else {
+      throw py::value_error("Unknown metric: " + metric);
+    }
+
     if (type == "HNSW") {
-      idx = std::make_unique<deepsearch::Hnsw>(dim, metric, R, L);
+      // 使用BuilderFactory创建HNSW构建器
+      deepsearch::graph::BuilderConfig config;
+      config.M = R;
+      config.ef_construction = L;
+
+      builder = deepsearch::graph::BuilderFactory<float>::create(
+          deepsearch::graph::BuilderType::HNSW, distance_type_, dim_, config);
     } else {
       throw py::value_error("Unknown index type: " + type);
     }
@@ -93,12 +116,13 @@ struct Index {
 
   Graph build(py::object data) {
     auto buf = to_buffer<float>(data);
-    if (buf.cols != idx->Dim())
+    if (buf.cols != dim_)
       throw py::value_error("Dimension mismatch: expected " +
-                            std::to_string(idx->Dim()) + ", got " +
+                            std::to_string(dim_) + ", got " +
                             std::to_string(buf.cols));
-    idx->Build(buf.ptr, buf.rows);
-    return Graph(idx->GetGraph());
+
+    auto graph = builder->build(buf.ptr, buf.rows, buf.cols);
+    return Graph(graph);
   }
 };
 
@@ -106,15 +130,42 @@ struct Index {
 // 5. Searcher wrapper
 // -----------------------------------------------------------------------------
 struct Searcher {
-  std::unique_ptr<deepsearch::SearcherBase> sr;
+  std::unique_ptr<deepsearch::searcher::SearcherBase> searcher;
   ssize_t dim_;
 
   Searcher(const Graph& graph, py::object data, const std::string& metric,
-           int level) {
+           const std::string& quant) {
     auto buf = to_buffer<float>(data);
     dim_ = buf.cols;
-    sr = deepsearch::create_searcher(graph.graph, metric, level);
-    sr->SetData(buf.ptr, buf.rows, buf.cols);
+
+    // 解析距离类型
+    deepsearch::core::DistanceType distance_type;
+    if (metric == "L2") {
+      distance_type = deepsearch::core::DistanceType::L2;
+    } else if (metric == "IP") {
+      distance_type = deepsearch::core::DistanceType::IP;
+    } else if (metric == "COSINE") {
+      distance_type = deepsearch::core::DistanceType::COSINE;
+    } else {
+      throw py::value_error("Unknown metric: " + metric);
+    }
+
+    // 使用SearcherFactory创建FP32搜索器
+    if (quant == "fp32") {
+      searcher = deepsearch::searcher::SearcherFactory::createFP32(
+          graph.graph, distance_type, dim_);
+    } else if (quant == "sq8") {
+      searcher = deepsearch::searcher::SearcherFactory::createSQ8(
+          graph.graph, distance_type, dim_);
+    } else if (quant == "sq4") {
+      searcher = deepsearch::searcher::SearcherFactory::createSQ4(
+          graph.graph, distance_type, dim_);
+    } else {
+      throw py::value_error("Unknown quant: " + quant);
+    }
+
+    // 设置数据
+    searcher->SetData(buf.ptr, buf.rows, buf.cols);
   }
 
   py::array_t<int> search(py::object query, int k) {
@@ -124,7 +175,7 @@ struct Searcher {
                             ")");
 
     int* ids = new int[k];
-    sr->Search(buf.ptr, k, ids);
+    searcher->Search(buf.ptr, k, ids);
 
     py::capsule free_when_done(ids,
                                [](void* f) { delete[] static_cast<int*>(f); });
@@ -145,13 +196,12 @@ struct Searcher {
     int* ids = new int[nq * k];
 
     parallel_for(nq, num_threads, [&](size_t i) {
-      sr->Search(buf.ptr + i * dim_, k, ids + i * k);
+      searcher->Search(buf.ptr + i * dim_, k, ids + i * k);
     });
 
     py::capsule free_when_done(ids,
                                [](void* f) { delete[] static_cast<int*>(f); });
 
-    // 返回二维数组，Python 侧析构时自动调用 capsule
     return py::array_t<int>({(ssize_t)nq, (ssize_t)k},    // shape
                             {(ssize_t)(k * sizeof(int)),  // row stride
                              (ssize_t)(sizeof(int))},     // col stride
@@ -162,12 +212,13 @@ struct Searcher {
 
   void set_ef(int ef) {
     if (ef <= 0) throw py::value_error("`ef` must be positive");
-    sr->SetEf(ef);
+    searcher->SetEf(ef);
   }
 
   void optimize(int num_threads = 0) {
     // Use parallel_for with a single iteration to adjust threads
-    parallel_for(1, num_threads, [&](size_t) { sr->Optimize(num_threads); });
+    parallel_for(1, num_threads,
+                 [&](size_t) { searcher->Optimize(num_threads); });
   }
 };
 
@@ -202,9 +253,10 @@ PYBIND11_MODULE(deepsearch, m) {
            "Build the index from a float array");
 
   py::class_<Searcher>(m, "Searcher")
-      .def(py::init<const Graph&, py::object, const std::string&, int>(),
+      .def(py::init<const Graph&, py::object, const std::string&,
+                    const std::string&>(),
            py::arg("graph"), py::arg("data"), py::arg("metric"),
-           py::arg("level"))
+           py::arg("quant"))
       .def("search", &Searcher::search, py::arg("query"), py::arg("k"),
            "Search a single vector")
       .def("batch_search", &Searcher::batch_search, py::arg("query"),

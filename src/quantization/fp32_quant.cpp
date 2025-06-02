@@ -1,12 +1,10 @@
 #include "fp32_quant.h"
 
-#include <core/factory.h>
-#include <distance/computers.h>
-
 #include <cstring>
 #include <stdexcept>
 
 #include "allocator.h"
+#include "distance/computers.h"
 
 namespace deepsearch {
 namespace quantization {
@@ -67,21 +65,22 @@ void FP32Quantizer::prefetch_data(size_t index, int lines) const {
 
 void FP32Quantizer::encode_query(const float* query) {
   ensure_thread_query_initialized();
-  encode(query, query_.get());
+  encode(query, get_query().get());
 }
 
 float FP32Quantizer::compute_query_distance(size_t index) const {
   const float* data_code = reinterpret_cast<const float*>(get_data(index));
-  return distance_computer_->compute(query_.get(), data_code);
+  return distance_computer_->compute(get_query().get(), data_code);
 }
 
 float FP32Quantizer::compute_query_distance(const float* code) const {
-  return distance_computer_->compute(query_.get(), code);
+  return distance_computer_->compute(get_query().get(), code);
 }
 
 void FP32Quantizer::ensure_thread_query_initialized() {
-  if (query_ == nullptr) {
-    query_.reset(static_cast<float*>(alloc64B(d_align * sizeof(float))));
+  auto& query = get_query();
+  if (query == nullptr) {
+    query.reset(static_cast<float*>(alloc64B(d_align * sizeof(float))));
   }
 }
 

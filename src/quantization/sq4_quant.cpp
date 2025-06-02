@@ -103,21 +103,22 @@ float SQ4Quantizer::compute_distance(const uint8_t* a, const uint8_t* b) const {
 
 void SQ4Quantizer::encode_query(const float* query) {
   ensure_thread_query_initialized();
-  encode(query, query_.get());
+  encode(query, get_query().get());
 }
 
 float SQ4Quantizer::compute_query_distance(size_t index) const {
   const uint8_t* data_code = reinterpret_cast<const uint8_t*>(get_data(index));
-  return distance_computer_->compute(query_.get(), data_code);
+  return distance_computer_->compute(get_query().get(), data_code);
 }
 
 float SQ4Quantizer::compute_query_distance(const uint8_t* code) const {
-  return distance_computer_->compute(query_.get(), code);
+  return distance_computer_->compute(get_query().get(), code);
 }
 
 void SQ4Quantizer::ensure_thread_query_initialized() {
-  if (query_ == nullptr) {
-    query_.reset(static_cast<uint8_t*>(alloc64B(d_align * sizeof(uint8_t))));
+  auto& query = get_query();
+  if (query == nullptr) {
+    query.reset(static_cast<uint8_t*>(alloc64B(d_align * sizeof(uint8_t))));
   }
 }
 

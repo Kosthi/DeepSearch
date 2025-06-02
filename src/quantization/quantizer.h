@@ -46,18 +46,18 @@ class QuantizerBase {
     }
   };
 
-  // 将 query_ 改为线程局部存储
-  static thread_local std::unique_ptr<CodeType[], FreeDeleter> query_;
+  // 使用函数返回局部静态变量，完全避免重复符号问题
+  static std::unique_ptr<CodeType[], FreeDeleter>& get_query() {
+    thread_local std::unique_ptr<CodeType[], FreeDeleter> query_ = nullptr;
+    return query_;
+  }
+
+  // query_ 使用线程局部存储，使用 inline 关键字解决重复符号问题
+  // inline static thread_local std::unique_ptr<CodeType[], FreeDeleter> query_;
 
   // 添加线程局部初始化方法
   virtual void ensure_thread_query_initialized() = 0;
 };
-
-// 线程局部变量类外定义
-template <typename InputType, typename CodeType>
-thread_local std::unique_ptr<
-    CodeType[], typename QuantizerBase<InputType, CodeType>::FreeDeleter>
-    QuantizerBase<InputType, CodeType>::query_ = nullptr;
 
 // 距离计算器基类
 template <typename T>

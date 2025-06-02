@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 #include "core/exceptions.h"
-#include "hnsw_builder.cpp"  // 包含模板实现
 
 namespace deepsearch {
 namespace graph {
