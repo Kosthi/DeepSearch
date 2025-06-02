@@ -23,7 +23,7 @@ class SQ8Quantizer : public QuantizerBase<float, uint8_t> {
       core::DistanceType distanceType, size_t dim,
       std::shared_ptr<FP32Quantizer> reorder_quantizer = nullptr);
 
-  ~SQ8Quantizer() override = default;
+  ~SQ8Quantizer() override;
 
   // 实现基类接口
   void train(const float* data, size_t n, size_t dim) override;
@@ -86,15 +86,14 @@ class SQ8Quantizer : public QuantizerBase<float, uint8_t> {
   float compute_query_distance(size_t index) const override;
   float compute_query_distance(const uint8_t* code) const override;
 
+  void ensure_thread_query_initialized() override;
+
  private:
   size_t d, d_align;
   char* codes = nullptr;
   std::vector<float> scale_, offset_;
   std::shared_ptr<FP32Quantizer> reorder_quantizer_;
   std::unique_ptr<core::DistanceComputerTemplate<uint8_t>> distance_computer_;
-
-  // 新增：存储编码后的查询向量
-  // mutable uint8_t* query_;
 };
 
 }  // namespace quantization

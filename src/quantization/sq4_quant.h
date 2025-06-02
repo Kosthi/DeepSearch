@@ -22,7 +22,7 @@ class SQ4Quantizer : public QuantizerBase<float, uint8_t> {
       core::DistanceType metric, size_t dim,
       std::shared_ptr<FP32Quantizer> reorder_quantizer = nullptr);
 
-  ~SQ4Quantizer() override = default;
+  ~SQ4Quantizer() override;
 
   // 实现基类接口
   void train(const float* data, size_t n, size_t dim) override;
@@ -41,6 +41,8 @@ class SQ4Quantizer : public QuantizerBase<float, uint8_t> {
   void encode_query(const float* query) override;
   float compute_query_distance(size_t index) const override;
   float compute_query_distance(const uint8_t* code) const override;
+
+  void ensure_thread_query_initialized() override;
 
   void prefetch_data(size_t index, int lines = 1) const;
 

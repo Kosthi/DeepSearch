@@ -19,7 +19,12 @@ SQ8Quantizer::SQ8Quantizer(core::DistanceType distanceType, size_t dim,
   // 使用SQ8模板特化的距离计算器
   distance_computer_ = distance::DistanceComputerFactory::create<uint8_t>(
       distanceType, dim, QuantizerType::SQ8);
-  query_ = (uint8_t*)alloc64B(d_align * sizeof(uint8_t));
+}
+
+SQ8Quantizer::~SQ8Quantizer() {
+  if (codes) {
+    free(codes);
+  }
 }
 
 void SQ8Quantizer::train(const float* data, size_t n, size_t dim) {
@@ -103,15 +108,24 @@ void SQ8Quantizer::prefetch_data(size_t index, int lines) const {
   mem_prefetch<prefetch_L1>(const_cast<char*>(get_data(index)), lines);
 }
 
-void SQ8Quantizer::encode_query(const float* query) { encode(query, query_); }
+void SQ8Quantizer::encode_query(const float* query) {
+  ensure_thread_query_initialized();
+  encode(query, query_.get());
+}
 
 float SQ8Quantizer::compute_query_distance(size_t index) const {
   const uint8_t* data_code = reinterpret_cast<const uint8_t*>(get_data(index));
-  return distance_computer_->compute(query_, data_code);
+  return distance_computer_->compute(query_.get(), data_code);
 }
 
 float SQ8Quantizer::compute_query_distance(const uint8_t* code) const {
-  return distance_computer_->compute(query_, code);
+  return distance_computer_->compute(query_.get(), code);
+}
+
+void SQ8Quantizer::ensure_thread_query_initialized() {
+  if (query_ == nullptr) {
+    query_.reset(static_cast<uint8_t*>(alloc64B(d_align * sizeof(uint8_t))));
+  }
 }
 
 }  // namespace quantization

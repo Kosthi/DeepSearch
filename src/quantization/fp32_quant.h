@@ -34,6 +34,8 @@ class FP32Quantizer : public QuantizerBase<float, float> {
   float compute_query_distance(size_t index) const override;
   float compute_query_distance(const float* code) const override;
 
+  void ensure_thread_query_initialized() override;
+
   void prefetch_data(size_t index, int lines = 1) const;
 
   // 重排序接口，模板函数定义在头文件中

@@ -22,9 +22,6 @@ FP32Quantizer::~FP32Quantizer() {
   if (codes) {
     free(codes);
   }
-  if (query_) {
-    free(query_);
-  }
 }
 
 void FP32Quantizer::train(const float* data, size_t n, size_t dim) {
@@ -34,7 +31,6 @@ void FP32Quantizer::train(const float* data, size_t n, size_t dim) {
 
   size_t total_size = n * d_align * sizeof(float);
   codes = (char*)alloc2M(total_size);
-  query_ = (float*)alloc64B(d_align * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     encode(data + i * d, reinterpret_cast<float*>(get_data(i)));
@@ -69,15 +65,24 @@ void FP32Quantizer::prefetch_data(size_t index, int lines) const {
   mem_prefetch<prefetch_L1>(const_cast<char*>(get_data(index)), lines);
 }
 
-void FP32Quantizer::encode_query(const float* query) { encode(query, query_); }
+void FP32Quantizer::encode_query(const float* query) {
+  ensure_thread_query_initialized();
+  encode(query, query_.get());
+}
 
 float FP32Quantizer::compute_query_distance(size_t index) const {
   const float* data_code = reinterpret_cast<const float*>(get_data(index));
-  return distance_computer_->compute(query_, data_code);
+  return distance_computer_->compute(query_.get(), data_code);
 }
 
 float FP32Quantizer::compute_query_distance(const float* code) const {
-  return distance_computer_->compute(query_, code);
+  return distance_computer_->compute(query_.get(), code);
+}
+
+void FP32Quantizer::ensure_thread_query_initialized() {
+  if (query_ == nullptr) {
+    query_.reset(static_cast<float*>(alloc64B(d_align * sizeof(float))));
+  }
 }
 
 }  // namespace quantization

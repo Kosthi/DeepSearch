@@ -87,8 +87,7 @@ int main(int argc, char** argv) {
     printf("iter : [%d/%d]\n", iter, iters);
     std::vector<int> pred(nq * topk);
     auto st = std::chrono::high_resolution_clock::now();
-    // 多线程搜索结果有问题，暂时关闭
-    // #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
+#pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (int i = 0; i < nq; ++i) {
       searcher->Search(query + i * dim, topk, pred.data() + i * topk);
     }

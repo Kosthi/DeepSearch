@@ -37,9 +37,27 @@ class QuantizerBase {
   virtual char* get_data(size_t index) = 0;
 
  protected:
-  // 存储编码后的查询向量
-  mutable CodeType* query_ = nullptr;
+  // 自定义删除器
+  struct FreeDeleter {
+    void operator()(CodeType* p) const {
+      if (p) {
+        free(p);
+      }
+    }
+  };
+
+  // 将 query_ 改为线程局部存储
+  static thread_local std::unique_ptr<CodeType[], FreeDeleter> query_;
+
+  // 添加线程局部初始化方法
+  virtual void ensure_thread_query_initialized() = 0;
 };
+
+// 线程局部变量类外定义
+template <typename InputType, typename CodeType>
+thread_local std::unique_ptr<
+    CodeType[], typename QuantizerBase<InputType, CodeType>::FreeDeleter>
+    QuantizerBase<InputType, CodeType>::query_ = nullptr;
 
 // 距离计算器基类
 template <typename T>
