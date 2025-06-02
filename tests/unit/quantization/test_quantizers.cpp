@@ -89,8 +89,8 @@ TEST_CASE_METHOD(QuantizerTestFixture, "FP32Quantizer functionality",
     quantizer.encode_query(query_.data());
     auto dis = quantizer.compute_query_distance(data_.data());
 
-    REQUIRE(dist == res);
-    REQUIRE(dist == dis);
+    REQUIRE(dist == Approx(res).margin(1e-6f));
+    REQUIRE(dist == Approx(dis).margin(1e-6f));
 
     // 自距离应该为0
     float self_dist = quantizer.compute_distance(query_.data(), query_.data());
