@@ -8,17 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
-# 只有在需要测试或benchmark时才添加 Catch2
-if (BUILD_TESTS OR BUILD_BENCHMARKS)
-    include(FetchContent)
-    FetchContent_Declare(
-            Catch2
-            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-            GIT_TAG v3.4.0  # 使用最新稳定版本
-    )
-    FetchContent_MakeAvailable(Catch2)
-endif ()
-
 # 全局添加 src 目录到头文件搜索路径
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -29,6 +18,7 @@ add_subdirectory(src/distance)
 add_subdirectory(src/simd)
 add_subdirectory(src/quantization)
 add_subdirectory(src/searcher)
+add_subdirectory(third_party)
 
 # 只有在开启测试时才添加测试目录
 if (BUILD_TESTS)
@@ -64,11 +54,12 @@ if (UNIX AND NOT APPLE)
     target_link_libraries(DeepSearch PRIVATE rt)
 endif ()
 
-# 链接 hnsw 库
+# 链接内部库和三方库
 target_link_libraries(DeepSearch
         PRIVATE
         deepsearch_graph
         deepsearch_searcher
+        deepsearch_third_party  # 新增的三方库接口
 )
 
 # 只有在开启测试时才启用测试

@@ -45,7 +45,7 @@ if (BUILD_TESTS)
 
     # 注册测试
     include(CTest)
-    include(Catch)
+    include(${Catch2_SOURCE_DIR}/extras/Catch.cmake)
     catch_discover_tests(deepsearch_tests)
 endif ()
 
