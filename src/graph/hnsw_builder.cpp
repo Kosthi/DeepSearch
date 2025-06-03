@@ -7,6 +7,7 @@
 
 #include "builder.h"
 #include "common.h"
+#include "core/logger.h"
 #include "graph/builder.h"
 #include "hnswlib/hnswlib.h"
 
@@ -42,12 +43,17 @@ void HNSWBuilder::initialize_hnsw() {
 }
 
 Graph HNSWBuilder::build(const float* data, size_t n, size_t dim) {
+  auto logger = core::LogManager::instance().get_logger("hnsw_builder");
+
   if (dim != dim_) {
+    logger->error("Dimension mismatch: expected {}, got {}", dim_, dim);
     throw std::invalid_argument("Dimension mismatch");
   }
 
   // 重新配置 HNSW 以适应数据大小
   if (n > config_.max_elements) {
+    logger->warn("Data size {} exceeds max_elements {}, reconfiguring", n,
+                 config_.max_elements);
     config_.max_elements = n;
     initialize_hnsw();
   }
@@ -56,10 +62,10 @@ Graph HNSWBuilder::build(const float* data, size_t n, size_t dim) {
   int num_threads = std::min(static_cast<int>(omp_get_max_threads()),
                              static_cast<int>(std::max(1UL, n / 1000)));
   omp_set_num_threads(num_threads);
-  std::cout << "Building HNSW with " << num_threads << " threads...\n";
+  logger->info("Building HNSW index with {} threads for {} points", num_threads,
+               n);
 
   std::atomic<int> cnt{0};
-
   auto start = std::chrono::high_resolution_clock::now();
 
   // 添加第一个点
@@ -76,30 +82,18 @@ Graph HNSWBuilder::build(const float* data, size_t n, size_t dim) {
     hnsw_->addPoint(data + i * dim, i);
     int cur = cnt += 1;
     if (cur % 10000 == 0) {
-      printf("HNSW building progress: [%d/%d]\n", cur, n);
+      logger->info("HNSW building progress: [{}/{}] ({:.1f}%)", cur, n,
+                   100.0 * cur / n);
     }
   }
 
   current_size_ = cnt;
-  // 批量添加剩余点 - OpenMP 并行化
-  // #pragma omp parallel for schedule(dynamic, 100)
-  // for (size_t i = 1; i < n; ++i) {
-  //   hnsw_->addPoint(data + i * dim_, i);
-  //
-  //   // 线程安全的进度报告
-  //   // #pragma omp atomic
-  //   current_size_++;
-  //
-  //   // 进度报告（减少输出频率避免竞争）
-  //   if (i % 50000 == 0) {
-  //     // #pragma omp critical
-  //     { std::cout << "HNSW building progress: [" << i << "/" << n << "]\n"; }
-  //   }
-  // }
-
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration<double>(end - start).count();
-  std::cout << "HNSW building completed in " << duration << "s\n";
+
+  logger->info(
+      "HNSW index built successfully: {} points in {:.2f}s ({:.0f} points/sec)",
+      n, duration, n / duration);
 
   return extract_graph();
 }

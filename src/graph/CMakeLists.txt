@@ -11,6 +11,11 @@ target_include_directories(deepsearch_graph
         ${CMAKE_CURRENT_SOURCE_DIR}  # 头文件路径指向 hnsw 目录
 )
 
+# 链接第三方库
+target_link_libraries(deepsearch_graph PUBLIC
+        deepsearch_third_party
+)
+
 if (APPLE)
     set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
     set(OpenMP_C_LIB_NAMES "omp")

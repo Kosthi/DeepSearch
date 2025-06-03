@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "core/logger.h"
 #include "graph/builder_factory.h"
 #include "searcher/searcher.h"
 
@@ -54,20 +55,40 @@ int main(int argc, char** argv) {
   float *base, *query;
   int* gt;
   int64_t N, dim, nq, gt_k;
+
+  // 初始化日志系统
+  auto& log_manager = LogManager::instance();
+  LogConfig logConfig;
+  log_manager.initialize(logConfig);
+
+  auto logger = log_manager.get_logger("main");
+
+  logger->info("Loading data from: base={}, query={}, gt={}", base_path,
+               query_path, gt_path);
+
   load_fvecs(base_path.c_str(), base, N, dim);
   load_fvecs(query_path.c_str(), query, nq, dim);
   load_fvecs(gt_path.c_str(), gt, nq, gt_k);
+
+  logger->info("Data loaded: N={}, dim={}, nq={}, gt_k={}", N, dim, nq, gt_k);
 
   BuilderConfig config;
   config.M = 16;
   config.ef_construction = 200;
   config.max_elements = N;
 
+  logger->info(
+      "Building HNSW with config: M={}, ef_construction={}, max_elements={}",
+      config.M, config.ef_construction, config.max_elements);
+
   auto hnsw_builder = BuilderFactory<float>::create(
       BuilderType::HNSW, DistanceType::L2, dim, config);
   if (!std::filesystem::exists(graph_path)) {
     auto graph = hnsw_builder->build(base, N, dim);
     graph.save(graph_path);
+    logger->info("Graph built and saved to: {}", graph_path);
+  } else {
+    logger->info("Loading existing graph from: {}", graph_path);
   }
   Graph graph;
   graph.load(graph_path);
@@ -81,10 +102,13 @@ int main(int argc, char** argv) {
   searcher->Optimize(num_threads);
   searcher->SetEf(search_ef);
 
+  logger->info("Starting search with {} threads, ef={}, topk={}, iterations={}",
+               num_threads, search_ef, topk, iters);
+
   double recall;
   double best_qps = 0.0;
   for (int iter = 1; iter <= iters; ++iter) {
-    printf("iter : [%d/%d]\n", iter, iters);
+    logger->info("Running iteration [{}/{}]", iter, iters);
     std::vector<int> pred(nq * topk);
     auto st = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
@@ -124,9 +148,14 @@ int main(int argc, char** argv) {
       }
     }
     recall = (double)cnt / nq / topk;
-    printf("\tRecall@%d = %.4lf, QPS = %.2lf\n", topk, recall, qps);
+    logger->info("Iteration {} results: Recall@{}={:.4f}, QPS={:.2f}", iter,
+                 topk, recall, qps);
   }
-  printf("Best QPS = %.2lf\n", best_qps);
+  logger->info("Search completed. Best QPS: {:.2f}", best_qps);
+
+  // 显式清理日志系统
+  log_manager.shutdown();
+
   free(base);
   free(query);
   free(gt);

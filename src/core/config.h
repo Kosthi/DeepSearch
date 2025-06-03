@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "logger.h"
+
 namespace deepsearch {
 namespace core {
 
@@ -50,6 +52,20 @@ struct QuantizationConfig : public BaseConfig {
   void from_string(const std::string& str) override;
 };
 
+struct LoggingConfig : public BaseConfig {
+  LogLevel level = LogLevel::INFO;
+  bool enable_console = true;
+  bool enable_file = true;
+  std::string log_dir = "logs";
+  std::string log_pattern = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v";
+  size_t max_file_size = 10 * 1024 * 1024;  // 10MB
+  size_t max_files = 5;
+  bool async_logging = true;
+
+  std::string to_string() const override;
+  void from_string(const std::string& str) override;
+};
+
 // 配置管理器
 class ConfigManager {
  public:
@@ -81,9 +97,11 @@ class ConfigManager {
   void set_quantization_config(const QuantizationConfig& config);
 
   // 便捷的配置获取方法
+  // 便捷方法
   HNSWConfig get_hnsw_config() const;
   SearchConfig get_search_config() const;
   QuantizationConfig get_quantization_config() const;
+  LoggingConfig get_logging_config() const;  // 添加这一行
 
   // 配置管理
   void reset_to_defaults();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/logger.h"
 #include "quantization/fp32_quant.h"
 #include "quantization/sq4_quant.h"
 #include "quantization/sq8_quant.h"
@@ -10,19 +11,21 @@ namespace searcher {
 
 template <typename QuantizerType>
 void Searcher<QuantizerType>::SetData(const float* data, int n, int dim) {
+  auto logger = core::LogManager::instance().get_logger("searcher");
   nb_ = n;
   d_ = dim;
 
   if (!quantizer_) {
+    logger->error("Quantizer not initialized");
     throw std::runtime_error("Quantizer not initialized");
   }
 
-  printf("Starting quantizer training\n");
+  logger->info("Starting quantizer training for {} points", n);
   auto t1 = std::chrono::high_resolution_clock::now();
   quantizer_->train(data, n, dim);
   auto t2 = std::chrono::high_resolution_clock::now();
-  printf("Done quantizer training, cost %.2lfs\n",
-         std::chrono::duration<double>(t2 - t1).count());
+  auto training_time = std::chrono::duration<double>(t2 - t1).count();
+  logger->info("Quantizer training completed in {:.2f}s", training_time);
 
   sample_points_num_ = std::min(kOptimizePoints, nb_ - 1);
   std::vector<int> sample_points(sample_points_num_);
@@ -38,9 +41,14 @@ void Searcher<QuantizerType>::SetData(const float* data, int n, int dim) {
 
 template <typename QuantizerType>
 void Searcher<QuantizerType>::Optimize(int num_threads) {
+  auto logger = core::LogManager::instance().get_logger("searcher");
+
   if (num_threads == 0) {
     num_threads = static_cast<int>(std::thread::hardware_concurrency());
   }
+
+  logger->info("Starting search optimization with {} threads", num_threads);
+
   std::vector<int> try_pos(
       std::min(kTryPos, static_cast<int>(graph_.max_degree())));
   std::vector<int> try_pls(
@@ -48,7 +56,7 @@ void Searcher<QuantizerType>::Optimize(int num_threads) {
   std::iota(try_pos.begin(), try_pos.end(), 1);
   std::iota(try_pls.begin(), try_pls.end(), 1);
   std::vector<int> dummy_dst(kTryK);
-  printf("=============Start optimization=============\n");
+  logger->info("=============Start optimization=============");
   {  // warmup
 #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (int i = 0; i < sample_points_num_; ++i) {
@@ -86,11 +94,11 @@ void Searcher<QuantizerType>::Optimize(int num_threads) {
   }
   auto ed = std::chrono::high_resolution_clock::now();
   double baseline_ela = std::chrono::duration<double>(ed - st).count();
-  printf(
-      "settint best po = %d, best pl = %d\n"
-      "gaining %.2f%% performance improvement\n============="
-      "Done optimization=============\n",
+  logger->info(
+      "settint best po = {}, best pl = {}, gaining {:.2f} performance "
+      "improvement",
       best_po, best_pl, 100.0 * (baseline_ela / min_ela - 1));
+
   this->po_ = best_po;
   this->pl_ = best_pl;
 }

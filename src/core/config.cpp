@@ -221,6 +221,7 @@ void ConfigManager::reset_to_defaults() {
   register_config("hnsw", std::make_shared<HNSWConfig>());
   register_config("search", std::make_shared<SearchConfig>());
   register_config("quantization", std::make_shared<QuantizationConfig>());
+  register_config("logging", std::make_shared<LoggingConfig>());  // 添加这一行
 }
 
 bool ConfigManager::has_config(const std::string& name) const {
@@ -233,6 +234,53 @@ std::vector<std::string> ConfigManager::get_config_names() const {
     names.push_back(name);
   }
   return names;
+}
+
+LoggingConfig ConfigManager::get_logging_config() const {
+  auto config = get_config<LoggingConfig>("logging");
+  return config ? *config : LoggingConfig{};
+}
+
+// LoggingConfig 实现
+std::string LoggingConfig::to_string() const {
+  std::ostringstream oss;
+  oss << "level=" << static_cast<int>(level)
+      << ";enable_console=" << (enable_console ? "true" : "false")
+      << ";enable_file=" << (enable_file ? "true" : "false")
+      << ";log_dir=" << log_dir << ";log_pattern=" << log_pattern
+      << ";max_file_size=" << max_file_size << ";max_files=" << max_files
+      << ";async_logging=" << (async_logging ? "true" : "false");
+  return oss.str();
+}
+
+void LoggingConfig::from_string(const std::string& str) {
+  std::istringstream iss(str);
+  std::string token;
+  while (std::getline(iss, token, ';')) {
+    size_t pos = token.find('=');
+    if (pos != std::string::npos) {
+      std::string key = token.substr(0, pos);
+      std::string value = token.substr(pos + 1);
+
+      if (key == "level") {
+        level = static_cast<LogLevel>(std::stoi(value));
+      } else if (key == "enable_console") {
+        enable_console = (value == "true");
+      } else if (key == "enable_file") {
+        enable_file = (value == "true");
+      } else if (key == "log_dir") {
+        log_dir = value;
+      } else if (key == "log_pattern") {
+        log_pattern = value;
+      } else if (key == "max_file_size") {
+        max_file_size = std::stoull(value);
+      } else if (key == "max_files") {
+        max_files = std::stoull(value);
+      } else if (key == "async_logging") {
+        async_logging = (value == "true");
+      }
+    }
+  }
 }
 
 }  // namespace core

@@ -17,6 +17,11 @@ target_include_directories(deepsearch_distance PUBLIC
         ${CMAKE_SOURCE_DIR}/src
 )
 
+# 链接第三方库
+target_link_libraries(deepsearch_distance PUBLIC
+        deepsearch_third_party
+)
+
 # 链接 SIMD 库
 # target_link_libraries(deepsearch_distance PUBLIC deepsearch_simd)
 
