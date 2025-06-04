@@ -70,7 +70,7 @@ def ensure_cmake_build():
         if not os.path.exists(spdlog_lib) or not os.path.exists(fmt_lib):
             print("Building third-party libraries...")
             # 先构建第三方库
-            subprocess.run(["make", "spdlog", "fmt", "-j$(nproc)"], cwd=build_dir, check=True)
+            subprocess.run(["make", "spdlog", "fmt", "-j"], cwd=build_dir, check=True)
 
         print("CMake build setup completed.")
         return True
