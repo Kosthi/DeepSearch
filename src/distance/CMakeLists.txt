@@ -17,13 +17,7 @@ target_include_directories(deepsearch_distance PUBLIC
         ${CMAKE_SOURCE_DIR}/src
 )
 
-# 链接第三方库
-target_link_libraries(deepsearch_distance PUBLIC
-        deepsearch_third_party
-)
-
-# 链接 SIMD 库
-# target_link_libraries(deepsearch_distance PUBLIC deepsearch_simd)
+target_link_libraries(deepsearch_distance PUBLIC spdlog::spdlog)
 
 # # 使用统一的 SIMD 配置函数
 # if(SIMD_CONFIGURE_FUNCTION_AVAILABLE)

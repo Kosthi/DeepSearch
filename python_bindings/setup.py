@@ -38,6 +38,109 @@ def get_openmp_flags():
     return [], []
 
 
+import subprocess
+
+
+def ensure_cmake_build():
+    """确保CMake项目已构建，包括第三方库"""
+    build_dir = os.path.join(PROJECT_ROOT, "build")
+
+    try:
+        # 检查build目录是否存在
+        if not os.path.exists(build_dir):
+            print("Creating build directory...")
+            os.makedirs(build_dir)
+
+        # 检查CMakeCache.txt是否存在，如果不存在则需要配置
+        cmake_cache = os.path.join(build_dir, "CMakeCache.txt")
+        if not os.path.exists(cmake_cache):
+            print("Configuring CMake...")
+            subprocess.run([
+                "cmake",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_TESTS=OFF",
+                "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+                ".."
+            ], cwd=build_dir, check=True)
+
+        # 检查第三方库是否已编译
+        spdlog_lib = os.path.join(build_dir, "_deps", "spdlog-build", "libspdlog.a")
+        fmt_lib = os.path.join(build_dir, "_deps", "fmt-build", "libfmt.a")
+
+        if not os.path.exists(spdlog_lib) or not os.path.exists(fmt_lib):
+            print("Building third-party libraries...")
+            # 先构建第三方库
+            subprocess.run(["make", "spdlog", "fmt", "-j$(nproc)"], cwd=build_dir, check=True)
+
+        print("CMake build setup completed.")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error during CMake build: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
+
+
+def get_cmake_target_info():
+    """获取CMake构建的第三方库信息"""
+    # 首先确保CMake项目已构建
+    if not ensure_cmake_build():
+        print("Warning: CMake build failed, falling back to system libraries")
+        return [], [], [], []
+
+    try:
+        build_dir = os.path.join(PROJECT_ROOT, "build")
+        deps_dir = os.path.join(build_dir, "_deps")
+
+        include_dirs = []
+        library_dirs = []
+        libraries = []
+        extra_objects = []  # 用于静态库
+
+        # spdlog路径
+        spdlog_src = os.path.join(deps_dir, "spdlog-src", "include")
+        spdlog_build = os.path.join(deps_dir, "spdlog-build")
+
+        if os.path.exists(spdlog_src):
+            include_dirs.append(spdlog_src)
+
+        # 查找spdlog静态库
+        spdlog_lib = os.path.join(spdlog_build, "libspdlog.a")
+        if os.path.exists(spdlog_lib):
+            extra_objects.append(spdlog_lib)
+            print(f"Found spdlog library: {spdlog_lib}")
+        else:
+            # 如果没有找到静态库，尝试动态库
+            if os.path.exists(spdlog_build):
+                library_dirs.append(spdlog_build)
+                libraries.append("spdlog")
+
+        # fmt路径
+        fmt_src = os.path.join(deps_dir, "fmt-src", "include")
+        fmt_build = os.path.join(deps_dir, "fmt-build")
+
+        if os.path.exists(fmt_src):
+            include_dirs.append(fmt_src)
+
+        # 查找fmt静态库
+        fmt_lib = os.path.join(fmt_build, "libfmt.a")
+        if os.path.exists(fmt_lib):
+            extra_objects.append(fmt_lib)
+            print(f"Found fmt library: {fmt_lib}")
+        else:
+            if os.path.exists(fmt_build):
+                library_dirs.append(fmt_build)
+                libraries.append("fmt")
+
+        return include_dirs, library_dirs, libraries, extra_objects
+
+    except Exception as e:
+        print(f"Warning: Could not get CMake target info: {e}")
+        return [], [], [], []
+
+
 class BuildExt(build_ext):
     user_options = build_ext.user_options + [('disable-openmp', None, "Disable OpenMP support")]
 
@@ -58,6 +161,9 @@ class BuildExt(build_ext):
     def build_extensions(self):
         cpp_flag = '/std:c++17' if IS_WINDOWS else '-std=c++17'
 
+        # 获取CMake构建的第三方库信息
+        cmake_includes, cmake_lib_dirs, cmake_libs, extra_objects = get_cmake_target_info()
+
         for ext in self.extensions:
             ext.extra_compile_args = [cpp_flag]
             ext.include_dirs.extend([
@@ -65,6 +171,22 @@ class BuildExt(build_ext):
                 np.get_include(),
                 SRC_DIR
             ])
+
+            # 添加CMake构建的第三方库
+            ext.include_dirs.extend(cmake_includes)
+            ext.library_dirs.extend(cmake_lib_dirs)
+            ext.libraries.extend(cmake_libs)
+
+            # 添加静态库对象文件
+            if extra_objects:
+                if not hasattr(ext, 'extra_objects'):
+                    ext.extra_objects = []
+                ext.extra_objects.extend(extra_objects)
+
+            # 添加运行时库路径（仅对动态库）
+            if cmake_lib_dirs:
+                for lib_dir in cmake_lib_dirs:
+                    ext.extra_link_args.append(f'-Wl,-rpath,{lib_dir}')
             if not IS_WINDOWS:
                 ext.extra_compile_args += [
                     f'-DVERSION_INFO="{self.distribution.get_version()}"',

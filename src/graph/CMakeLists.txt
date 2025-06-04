@@ -13,7 +13,7 @@ target_include_directories(deepsearch_graph
 
 # 链接第三方库
 target_link_libraries(deepsearch_graph PUBLIC
-        deepsearch_third_party
+        spdlog::spdlog
 )
 
 if (APPLE)
