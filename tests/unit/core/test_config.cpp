@@ -92,12 +92,13 @@ TEST_CASE("ConfigManager functionality", "[config][manager]") {
   SECTION("Basic operations") {
     manager.reset_to_defaults();
 
+    REQUIRE(manager.has_config("logging"));
     REQUIRE(manager.has_config("hnsw"));
     REQUIRE(manager.has_config("search"));
     REQUIRE(manager.has_config("quantization"));
 
     auto names = manager.get_config_names();
-    REQUIRE(names.size() == 3);
+    REQUIRE(names.size() == 4);
   }
 
   SECTION("Convenience methods") {

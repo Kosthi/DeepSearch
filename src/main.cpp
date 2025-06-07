@@ -37,6 +37,13 @@ int main(int argc, char** argv) {
         "topk search_ef num_threads\n");
     exit(-1);
   }
+
+  // 使用RAII管理日志系统生命周期
+  LogConfig logConfig;
+  LoggerGuard logger_guard(logConfig);
+
+  auto logger = LogManager::instance().get_logger("main");
+
   std::string base_path = argv[1];
   std::string query_path = argv[2];
   std::string gt_path = argv[3];
@@ -55,13 +62,6 @@ int main(int argc, char** argv) {
   float *base, *query;
   int* gt;
   int64_t N, dim, nq, gt_k;
-
-  // 初始化日志系统
-  auto& log_manager = LogManager::instance();
-  LogConfig logConfig;
-  log_manager.initialize(logConfig);
-
-  auto logger = log_manager.get_logger("main");
 
   logger->info("Loading data from: base={}, query={}, gt={}", base_path,
                query_path, gt_path);
@@ -152,9 +152,6 @@ int main(int argc, char** argv) {
                  topk, recall, qps);
   }
   logger->info("Search completed. Best QPS: {:.2f}", best_qps);
-
-  // 显式清理日志系统
-  log_manager.shutdown();
 
   free(base);
   free(query);

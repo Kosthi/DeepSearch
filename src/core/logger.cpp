@@ -14,8 +14,6 @@ LogManager& LogManager::instance() {
   return instance;
 }
 
-LogManager::~LogManager() { shutdown(); }
-
 void LogManager::initialize(const LogConfig& config) {
   if (initialized_) {
     return;

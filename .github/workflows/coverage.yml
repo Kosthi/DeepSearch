@@ -1,0 +1,179 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ gcc lcov python3 python3-pip python3-venv
+          
+      - name: Download test data
+        run: |
+          if [ ! -d "siftsmall" ]; then
+            echo "下载测试数据..."
+            wget -q -O siftsmall.tar.gz ftp://ftp.irisa.fr/local/texmex/corpus/siftsmall.tar.gz
+            tar -xzf siftsmall.tar.gz
+          fi
+          
+      - name: Clean and create build directory
+        run: |
+          echo "清理构建目录..."
+          rm -rf build_coverage
+          mkdir build_coverage
+          
+      - name: Configure with coverage
+        run: |
+          cd build_coverage
+          echo "配置项目（启用覆盖率）..."
+          cmake .. -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+          
+      - name: Build with coverage
+        run: |
+          cd build_coverage
+          echo "构建项目..."
+          cmake --build . --config Debug -j$(nproc)
+          
+      - name: Initialize coverage counters
+        run: |
+          cd build_coverage
+          echo "初始化覆盖率计数器..."
+          lcov --capture --initial --directory . --output-file coverage_base.info \
+            --ignore-errors inconsistent,source,unsupported,format,unused \
+            --exclude "*/build_coverage/_deps/*" \
+            --exclude "*/third_party/*" \
+            --exclude "*/tests/*" \
+            --exclude "*/test/*"
+          
+      - name: Run all unit tests
+        run: |
+          cd build_coverage
+          echo "运行单元测试..."
+          ctest --output-on-failure --verbose
+          
+      - name: Run integration tests
+        run: |
+          cd build_coverage
+          echo "运行集成测试..."
+          ./DeepSearch ../siftsmall/siftsmall_base.fvecs ../siftsmall/siftsmall_query.fvecs ../siftsmall/siftsmall_groundtruth.ivecs graph.index 1 10 120 0
+          
+      - name: Capture test coverage data
+        run: |
+          cd build_coverage
+          echo "捕获覆盖率数据..."
+          lcov --capture --directory . --output-file coverage_test.info \
+            --ignore-errors inconsistent,source,unsupported,format,unused \
+            --exclude "*/build_coverage/_deps/*" \
+            --exclude "*/third_party/*" \
+            --exclude "*/tests/*" \
+            --exclude "*/test/*"
+          
+      - name: Combine coverage data
+        run: |
+          cd build_coverage
+          echo "合并覆盖率数据..."
+          lcov --add-tracefile coverage_base.info --add-tracefile coverage_test.info \
+            --output-file coverage_combined.info \
+            --ignore-errors inconsistent,source,unsupported,format,unused
+          
+      - name: Filter coverage data
+        run: |
+          cd build_coverage
+          echo "过滤覆盖率数据..."
+          lcov --remove coverage_combined.info \
+            "*/build_coverage/_deps/*" \
+            "*/third_party/*" \
+            "*/tests/*" \
+            "*/test/*" \
+            "*/usr/*" \
+            "*/opt/*" \
+            --output-file coverage_filtered.info \
+            --ignore-errors inconsistent,source,unsupported,format,unused
+          
+      - name: Display coverage summary
+        run: |
+          cd build_coverage
+          echo "\n=== 覆盖率摘要 ==="
+          lcov --list coverage_filtered.info --ignore-errors inconsistent,source,unsupported,format,unused
+          
+      - name: Generate HTML coverage report
+        run: |
+          cd build_coverage
+          echo "\n生成 HTML 报告..."
+          genhtml coverage_filtered.info --output-directory coverage_html --title "DeepSearch Coverage Report" --show-details --legend --ignore-errors inconsistent,source,unsupported,format,unused,category
+          
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./build_coverage/coverage_filtered.info
+          flags: unittests,integration
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
+      - name: Upload HTML coverage report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-report
+          path: build_coverage/coverage_html/
+          retention-days: 30
+          
+      - name: Comment coverage summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './build_coverage/coverage_filtered.info';
+            
+            if (fs.existsSync(path)) {
+              try {
+                const coverage = fs.readFileSync(path, 'utf8');
+                const lines = coverage.split('\n');
+                
+                // 查找覆盖率摘要信息
+                let functionsFound = 0, linesFound = 0;
+                let functionsHit = 0, linesHit = 0;
+                
+                for (const line of lines) {
+                  if (line.startsWith('FNF:')) functionsFound = parseInt(line.split(':')[1]);
+                  if (line.startsWith('FNH:')) functionsHit = parseInt(line.split(':')[1]);
+                  if (line.startsWith('LF:')) linesFound = parseInt(line.split(':')[1]);
+                  if (line.startsWith('LH:')) linesHit = parseInt(line.split(':')[1]);
+                }
+                
+                const functionCoverage = functionsFound > 0 ? ((functionsHit / functionsFound) * 100).toFixed(2) : '0.00';
+                const lineCoverage = linesFound > 0 ? ((linesHit / linesFound) * 100).toFixed(2) : '0.00';
+                
+                const body = `## 📊 代码覆盖率报告\n\n` +
+                  `- **函数覆盖率**: ${functionCoverage}% (${functionsHit}/${functionsFound})\n` +
+                  `- **行覆盖率**: ${lineCoverage}% (${linesHit}/${linesFound})\n\n` +
+                  `详细报告请查看 [Codecov](https://codecov.io/gh/${{ github.repository }}/pull/${{ github.event.number }}) 或下载 HTML 报告工件。`;
+                
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+                });
+              } catch (error) {
+                console.error('解析覆盖率文件时出错:', error);
+              }
+            } else {
+              console.log('覆盖率文件不存在');
+            }

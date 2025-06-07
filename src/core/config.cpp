@@ -218,10 +218,10 @@ void ConfigManager::reset_to_defaults() {
   configs_.clear();
 
   // 设置默认配置
+  register_config("logging", std::make_shared<LoggingConfig>());
   register_config("hnsw", std::make_shared<HNSWConfig>());
   register_config("search", std::make_shared<SearchConfig>());
   register_config("quantization", std::make_shared<QuantizationConfig>());
-  register_config("logging", std::make_shared<LoggingConfig>());  // 添加这一行
 }
 
 bool ConfigManager::has_config(const std::string& name) const {

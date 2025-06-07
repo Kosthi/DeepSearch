@@ -1,0 +1,43 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 75%
+        threshold: 2%
+        base: auto
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+        
+comment:
+  layout: "reach,diff,flags,tree,betaprofiling"
+  behavior: default
+  require_changes: false
+  
+ignore:
+  - "third_party/**/*"
+  - "tests/**/*"
+  - "python_bindings/**/*"
+  - "build/**/*"
+  - "**/*.h"  # 忽略头文件
+  - "src/hnswlib/**/*"  # 忽略第三方 hnswlib
+  
+flag_management:
+  default_rules:
+    carryforward: true
+    statuses:
+      - name: "project"
+        type: "project"
+        target: 75%
+      - name: "patch"
+        type: "patch"
+        target: 60%
+        
+flags:
+  unittests:
+    paths:
+      - src/
+  integration:
+    paths:
+      - src/

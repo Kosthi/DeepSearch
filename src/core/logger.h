@@ -33,7 +33,7 @@ struct LogConfig {
   std::string log_pattern = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v";
   size_t max_file_size = 10 * 1024 * 1024;  // 10MB
   size_t max_files = 5;
-  bool async_logging = true;
+  bool async_logging = false;
   size_t async_queue_size = 8192;
   size_t thread_pool_size = 1;
 };
@@ -68,7 +68,56 @@ class LogManager {
 
  private:
   LogManager() = default;
-  ~LogManager();
+  ~LogManager() {
+    // 在析构函数中安全地清理
+    try {
+      if (initialized_) {
+        shutdown_internal();
+      }
+    } catch (...) {
+      // 忽略析构时的异常
+    }
+  }
+
+  void shutdown_internal() {
+    if (!initialized_) {
+      return;
+    }
+
+    // 首先停止所有异步操作
+    if (config_.async_logging) {
+      // 等待异步操作完成
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    // 清理logger，避免异步flush
+    for (auto& [name, logger] : loggers_) {
+      if (logger) {
+        try {
+          // 同步flush，避免异步操作
+          logger->flush();
+        } catch (...) {
+          // 忽略flush错误
+        }
+      }
+    }
+
+    // 清理资源
+    spdlog::set_default_logger(nullptr);
+    loggers_.clear();
+    sinks_.clear();
+
+    // 最后关闭线程池
+    if (config_.async_logging) {
+      try {
+        spdlog::shutdown();
+      } catch (...) {
+        // 忽略shutdown错误
+      }
+    }
+
+    initialized_ = false;
+  }
 
   void create_sinks();
   spdlog::level::level_enum to_spdlog_level(LogLevel level) const;
@@ -77,6 +126,22 @@ class LogManager {
   std::vector<spdlog::sink_ptr> sinks_;
   std::unordered_map<std::string, std::shared_ptr<spdlog::logger>> loggers_;
   bool initialized_ = false;
+};
+
+class LoggerGuard {
+ public:
+  explicit LoggerGuard(const LogConfig& config = LogConfig{}) {
+    auto& logger = LogManager::instance();
+    logger.initialize(config);
+  }
+
+  ~LoggerGuard() {
+    auto& logger = LogManager::instance();
+    logger.shutdown();
+  }
+
+  LoggerGuard(const LoggerGuard&) = delete;
+  LoggerGuard& operator=(const LoggerGuard&) = delete;
 };
 
 // 便利宏定义
