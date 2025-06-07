@@ -4,7 +4,6 @@
 
 namespace deepsearch {
 namespace simd {
-
 // Global function pointers definition
 L2SqrFunc L2Sqr = nullptr;
 IPFunc IP = nullptr;
@@ -19,52 +18,53 @@ void initializeSIMDFunctions() {
 
   switch (level) {
     case SIMDCapabilities::Level::AVX512:
-      L2Sqr = detail::L2Sqr_avx512;
-      IP = detail::IP_avx512;
-      L2SqrSQ8_ext = detail::L2SqrSQ8_avx512;
-      IPSQ8_ext = detail::IPSQ8_avx512;
-      L2SqrSQ4 = detail::L2SqrSQ4_avx2;  // Fallback to AVX2 for SQ4
+      L2Sqr = avx512::L2Sqr;
+      IP = avx512::IP;
+      L2SqrSQ8_ext = avx512::L2SqrSQ8;
+      IPSQ8_ext = avx512::IPSQ8;
+      L2SqrSQ4 = avx2::L2SqrSQ4;  // Fallback to AVX2 for SQ4
       break;
 
     case SIMDCapabilities::Level::AVX2:
-      L2Sqr = detail::L2Sqr_avx2;
-      IP = detail::IP_avx2;
-      L2SqrSQ4 = detail::L2SqrSQ4_avx2;
-      L2SqrSQ8_ext = L2SqrSQ8_ref;  // Fallback to reference
-      IPSQ8_ext = IPSQ8_ref;
+      L2Sqr = avx2::L2Sqr;
+      IP = avx2::IP;
+      L2SqrSQ4 = avx2::L2SqrSQ4;
+      L2SqrSQ8_ext = ref::L2SqrSQ8;  // Fallback to reference
+      IPSQ8_ext = ref::IPSQ8;
       break;
 
     case SIMDCapabilities::Level::SSE:
-      L2Sqr = detail::L2Sqr_sse;
-      IP = detail::IP_sse;
-      L2SqrSQ8_ext = L2SqrSQ8_ref;
-      L2SqrSQ4 = L2SqrSQ4_ref;
-      IPSQ8_ext = IPSQ8_ref;
+      L2Sqr = sse::L2Sqr;
+      IP = sse::IP;
+      L2SqrSQ8_ext = ref::L2SqrSQ8;
+      L2SqrSQ4 = ref::L2SqrSQ4;
+      IPSQ8_ext = ref::IPSQ8;
       break;
 
     case SIMDCapabilities::Level::NEON:
-      L2Sqr = detail::L2Sqr_neon;
-      IP = detail::IP_neon;
-      L2SqrSQ8_ext = detail::L2SqrSQ8_neon;
-      L2SqrSQ4 = detail::L2SqrSQ4_neon;
-      IPSQ8_ext = IPSQ8_ref;
+      L2Sqr = neon::L2Sqr;
+      IP = neon::IP;
+      L2SqrSQ8_ext = neon::L2SqrSQ8;
+      L2SqrSQ4 = neon::L2SqrSQ4;
+      IPSQ8_ext = ref::IPSQ8;
       break;
 
     default:
-      L2Sqr = L2SqrRef;
-      IP = IPRef;
-      L2SqrSQ8_ext = L2SqrSQ8_ref;
-      L2SqrSQ4 = L2SqrSQ4_ref;
-      IPSQ8_ext = IPSQ8_ref;
+      L2Sqr = ref::L2Sqr;
+      IP = ref::IP;
+      L2SqrSQ8_ext = ref::L2SqrSQ8;
+      L2SqrSQ4 = ref::L2SqrSQ4;
+      IPSQ8_ext = ref::IPSQ8;
       break;
   }
 
   // Cosine distance always uses optimized L2 and IP
-  CosineDistance = CosineDistanceRef;
+  CosineDistance = ref::CosineDistance;
 }
 
+namespace ref {
 // Reference implementations
-float L2SqrRef(const float* pVect1, const float* pVect2, size_t qty) {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   for (size_t i = 0; i < qty; i++) {
     float t = *pVect1 - *pVect2;
@@ -75,7 +75,7 @@ float L2SqrRef(const float* pVect1, const float* pVect2, size_t qty) {
   return res;
 }
 
-float IPRef(const float* pVect1, const float* pVect2, size_t qty) {
+float IP(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   for (size_t i = 0; i < qty; i++) {
     res += (*pVect1) * (*pVect2);
@@ -85,7 +85,7 @@ float IPRef(const float* pVect1, const float* pVect2, size_t qty) {
   return res;
 }
 
-float CosineDistanceRef(const float* pVect1, const float* pVect2, size_t qty) {
+float CosineDistance(const float* pVect1, const float* pVect2, size_t qty) {
   // float dot_product = IP(pVect1, pVect2, qty);
   // 确保向量已经归一化
   // float norm1 = std::sqrt(L2Sqr(pVect1, pVect1, qty));
@@ -99,7 +99,7 @@ float CosineDistanceRef(const float* pVect1, const float* pVect2, size_t qty) {
   return 1.0f - cosine_similarity;
 }
 
-float L2SqrSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -111,7 +111,7 @@ float L2SqrSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
   return res;
 }
 
-float L2SqrSQ4_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -136,7 +136,7 @@ float L2SqrSQ4_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
   return res;
 }
 
-float IPSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
+float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -146,12 +146,13 @@ float IPSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty) {
   }
   return res;
 }
+}  // namespace ref
 
 // SIMD implementations
-namespace detail {
+namespace sse {
 
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
 #ifdef __SSE__
-float L2Sqr_sse(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   size_t qty4 = qty >> 2;
 
@@ -176,9 +177,13 @@ float L2Sqr_sse(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::L2Sqr(pVect1, pVect2, qty);
+#endif
 }
 
-float IP_sse(const float* pVect1, const float* pVect2, size_t qty) {
+float IP(const float* pVect1, const float* pVect2, size_t qty) {
+#ifdef __SSE__
   float res = 0;
   size_t qty4 = qty >> 2;
 
@@ -201,19 +206,16 @@ float IP_sse(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
-}
 #else
-float L2Sqr_sse(const float* pVect1, const float* pVect2, size_t qty) {
-  return L2SqrRef(pVect1, pVect2, qty);
-}
-
-float IP_sse(const float* pVect1, const float* pVect2, size_t qty) {
-  return IPRef(pVect1, pVect2, qty);
-}
+  return ref::IP(pVect1, pVect2, qty);
 #endif
+}
+}  // namespace sse
 
+namespace avx2 {
+
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
 #ifdef __AVX2__
-float L2Sqr_avx2(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   size_t qty8 = qty >> 3;
 
@@ -238,9 +240,13 @@ float L2Sqr_avx2(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::L2Sqr(pVect1, pVect2, qty);
+#endif
 }
 
-float IP_avx2(const float* pVect1, const float* pVect2, size_t qty) {
+float IP(const float* pVect1, const float* pVect2, size_t qty) {
+#ifdef __AVX2__
   float res = 0;
   size_t qty8 = qty >> 3;
 
@@ -263,10 +269,13 @@ float IP_avx2(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::IP(pVect1, pVect2, qty);
+#endif
 }
 
-float L2SqrSQ4_avx2(const void* pVect1v, const void* pVect2v,
-                    const void* qty_ptr) {
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
+#ifdef __AVX2__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
   size_t qty = *static_cast<const size_t*>(qty_ptr);
@@ -327,23 +336,15 @@ float L2SqrSQ4_avx2(const void* pVect1v, const void* pVect2v,
   }
 
   return res;
-}
 #else
-float L2Sqr_avx2(const float* pVect1, const float* pVect2, size_t qty) {
-  return L2SqrRef(pVect1, pVect2, qty);
-}
-
-float IP_avx2(const float* pVect1, const float* pVect2, size_t qty) {
-  return IPRef(pVect1, pVect2, qty);
-}
-
-float L2SqrSQ4_avx2(const void* pVect1v, const void* pVect2v, size_t qty) {
-  return L2SqrSQ4_ref(pVect1v, pVect2v, qty);
-}
+  return ref::L2SqrSQ4(pVect1v, pVect2v, qty);
 #endif
+}
+}  // namespace avx2
 
+namespace avx512 {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
 #ifdef __AVX512F__
-float L2Sqr_avx512(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   size_t qty16 = qty >> 4;
 
@@ -368,9 +369,13 @@ float L2Sqr_avx512(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::L2Sqr(pVect1, pVect2, qty);
+#endif
 }
 
-float IP_avx512(const float* pVect1, const float* pVect2, size_t qty) {
+float IP(const float* pVect1, const float* pVect2, size_t qty) {
+#ifdef __AVX512F__
   float res = 0;
   size_t qty16 = qty >> 4;
 
@@ -393,10 +398,13 @@ float IP_avx512(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::IP(pVect1, pVect2, qty);
+#endif
 }
 
-float L2SqrSQ8_avx512(const void* pVect1v, const void* pVect2v,
-                      const void* qty_ptr) {
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
+#ifdef __AVX512F__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
   size_t qty = *static_cast<const size_t*>(qty_ptr);
@@ -433,10 +441,13 @@ float L2SqrSQ8_avx512(const void* pVect1v, const void* pVect2v,
   }
 
   return res;
+#else
+  return ref::L2SqrSQ8(pVect1v, pVect2v, qty);
+#endif
 }
 
-float IPSQ8_avx512(const void* pVect1v, const void* pVect2v,
-                   const void* qty_ptr) {
+float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
+#ifdef __AVX512F__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
   size_t qty = *static_cast<const size_t*>(qty_ptr);
@@ -471,27 +482,16 @@ float IPSQ8_avx512(const void* pVect1v, const void* pVect2v,
   }
 
   return res;
-}
 #else
-float L2Sqr_avx512(const float* pVect1, const float* pVect2, size_t qty) {
-  return L2SqrRef(pVect1, pVect2, qty);
-}
-
-float IP_avx512(const float* pVect1, const float* pVect2, size_t qty) {
-  return IPRef(pVect1, pVect2, qty);
-}
-
-float L2SqrSQ8_avx512(const void* pVect1v, const void* pVect2v, size_t qty) {
-  return L2SqrSQ8_ref(pVect1v, pVect2v, qty);
-}
-
-float IPSQ8_avx512(const void* pVect1v, const void* pVect2v, size_t qty) {
-  return IPSQ8_ref(pVect1v, pVect2v, qty);
-}
+  return ref::IPSQ8(pVect1v, pVect2v, qty);
 #endif
+}
+}  // namespace avx512
 
+namespace neon {
+
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
 #ifdef __ARM_NEON
-float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty) {
   float res = 0;
   size_t qty4 = qty >> 2;
 
@@ -515,9 +515,13 @@ float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+#else
+  return ref::L2Sqr(pVect1, pVect2, qty);
+#endif
 }
 
-float L2SqrSQ4_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
+#ifdef __ARM_NEON
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -602,9 +606,13 @@ float L2SqrSQ4_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
   }
 
   return static_cast<float>(sum);
+#else
+  return ref::L2SqrSQ4(pVect1, pVect2, qty);
+#endif
 }
 
-float L2SqrSQ8_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
+#ifdef __ARM_NEON
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -666,9 +674,13 @@ float L2SqrSQ8_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
   }
 
   return sum;
+#else
+  return ref::L2SqrSQ8(pVect1, pVect2, qty);
+#endif
 }
 
-float IP_neon(const float* pVect1, const float* pVect2, size_t qty) {
+float IP(const float* pVect1, const float* pVect2, size_t qty) {
+#ifdef __ARM_NEON
   float res = 0;
   size_t qty4 = qty >> 2;
 
@@ -690,18 +702,11 @@ float IP_neon(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
-}
 #else
-float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty) {
-  return L2SqrRef(pVect1, pVect2, qty);
-}
-
-float IP_neon(const float* pVect1, const float* pVect2, size_t qty) {
-  return IPRef(pVect1, pVect2, qty);
-}
+  return ref::IP(pVect1, pVect2, qty);
 #endif
-
-}  // namespace detail
+}
+}  // namespace neon
 
 }  // namespace simd
 }  // namespace deepsearch

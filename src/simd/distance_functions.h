@@ -36,38 +36,47 @@ void initializeSIMDFunctions();
 /**
  * Reference implementations (always available)
  */
-float L2SqrRef(const float* pVect1, const float* pVect2, size_t qty);
-float IPRef(const float* pVect1, const float* pVect2, size_t qty);
-float CosineDistanceRef(const float* pVect1, const float* pVect2, size_t qty);
-float L2SqrSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty);
-float L2SqrSQ4_ref(const void* pVect1v, const void* pVect2v, size_t qty);
-float IPSQ8_ref(const void* pVect1v, const void* pVect2v, size_t qty);
+namespace ref {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty);
+float IP(const float* pVect1, const float* pVect2, size_t qty);
+float CosineDistance(const float* pVect1, const float* pVect2, size_t qty);
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty);
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty);
+float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty);
+}  // namespace ref
 
 /**
  * Internal implementation functions (not for direct use)
  */
-namespace detail {
+
 // SSE implementations
-float L2Sqr_sse(const float* pVect1, const float* pVect2, size_t qty);
-float IP_sse(const float* pVect1, const float* pVect2, size_t qty);
+namespace sse {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty);
+float IP(const float* pVect1, const float* pVect2, size_t qty);
+}  // namespace sse
 
 // AVX2 implementations
-float L2Sqr_avx2(const float* pVect1, const float* pVect2, size_t qty);
-float IP_avx2(const float* pVect1, const float* pVect2, size_t qty);
-float L2SqrSQ4_avx2(const void* pVect1v, const void* pVect2v, size_t qty);
+namespace avx2 {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty);
+float IP(const float* pVect1, const float* pVect2, size_t qty);
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty);
+}  // namespace avx2
 
 // AVX512 implementations
-float L2Sqr_avx512(const float* pVect1, const float* pVect2, size_t qty);
-float IP_avx512(const float* pVect1, const float* pVect2, size_t qty);
-float L2SqrSQ8_avx512(const void* pVect1v, const void* pVect2v, size_t qty);
-float IPSQ8_avx512(const void* pVect1v, const void* pVect2v, size_t qty);
+namespace avx512 {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty);
+float IP(const float* pVect1, const float* pVect2, size_t qty);
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty);
+float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty);
+}  // namespace avx512
 
 // NEON implementations
-float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty);
-float L2SqrSQ4_neon(const void* pVect1v, const void* pVect2v, size_t qty);
-float L2SqrSQ8_neon(const void* pVect1v, const void* pVect2v, size_t qty);
-float IP_neon(const float* pVect1, const float* pVect2, size_t qty);
-}  // namespace detail
+namespace neon {
+float L2Sqr(const float* pVect1, const float* pVect2, size_t qty);
+float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty);
+float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty);
+float IP(const float* pVect1, const float* pVect2, size_t qty);
+}  // namespace neon
 
 }  // namespace simd
 }  // namespace deepsearch
