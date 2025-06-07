@@ -278,7 +278,6 @@ float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
 #ifdef __AVX2__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
-  size_t qty = *static_cast<const size_t*>(qty_ptr);
 
   float res = 0;
   size_t qty_bytes = (qty + 1) / 2;
@@ -407,7 +406,6 @@ float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
 #ifdef __AVX512F__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
-  size_t qty = *static_cast<const size_t*>(qty_ptr);
 
   float res = 0;
   size_t qty16 = qty >> 4;
@@ -450,7 +448,6 @@ float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
 #ifdef __AVX512F__
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
-  size_t qty = *static_cast<const size_t*>(qty_ptr);
 
   float res = 0;
   size_t qty16 = qty >> 4;
@@ -607,7 +604,7 @@ float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
 
   return static_cast<float>(sum);
 #else
-  return ref::L2SqrSQ4(pVect1, pVect2, qty);
+  return ref::L2SqrSQ4(pVect1v, pVect1v, qty);
 #endif
 }
 
@@ -675,7 +672,7 @@ float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
 
   return sum;
 #else
-  return ref::L2SqrSQ8(pVect1, pVect2, qty);
+  return ref::L2SqrSQ8(pVect1v, pVect1v, qty);
 #endif
 }
 
