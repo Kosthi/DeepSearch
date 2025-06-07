@@ -1,5 +1,7 @@
 # DeepSearch
 
+[![codecov](https://codecov.io/gh/Kosthi/DeepSearch/branch/master/graph/badge.svg)](https://codecov.io/gh/Kosthi/DeepSearch)
+
 **DeepSearch** is a cross-platform C++ framework for approximate nearest neighbor (ANN) search, with a focus on performance, scalability, and integration into AI-driven applications.
 
 > ⚠️ This project is in its early development stage. APIs, performance, and features are subject to change.
