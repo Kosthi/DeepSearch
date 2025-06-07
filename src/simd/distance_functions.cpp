@@ -103,11 +103,40 @@ float L2SqrSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
-  float res = 0;
-  for (size_t i = 0; i < qty; i++) {
-    float diff = static_cast<float>(pVect1[i]) - static_cast<float>(pVect2[i]);
-    res += diff * diff;
+  // 确保指针正确对齐（16字节对齐）
+  if (reinterpret_cast<uintptr_t>(pVect1) % 16 != 0 ||
+      reinterpret_cast<uintptr_t>(pVect2) % 16 != 0) {
+    // 如果未对齐，使用安全的内存复制方式
+    float res = 0;
+    for (size_t i = 0; i < qty; i++) {
+      int16_t diff =
+          static_cast<int16_t>(pVect1[i]) - static_cast<int16_t>(pVect2[i]);
+      res += static_cast<float>(diff) * diff;
+    }
+    return res;
   }
+
+  // 主计算循环 - 使用整数运算避免浮点异常
+  float res = 0;
+  size_t i = 0;
+
+  // 使用整数运算处理大部分数据
+  int32_t sum = 0;
+  for (; i < qty; i++) {
+    int16_t diff =
+        static_cast<int16_t>(pVect1[i]) - static_cast<int16_t>(pVect2[i]);
+    sum += diff * diff;
+
+    // 每256次迭代转换为浮点，避免整数溢出
+    if (i % 256 == 255) {
+      res += static_cast<float>(sum);
+      sum = 0;
+    }
+  }
+
+  // 处理剩余部分
+  res += static_cast<float>(sum);
+
   return res;
 }
 
@@ -140,11 +169,16 @@ float IPSQ8(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
-  float res = 0;
+  // 使用64位整数累加，防止溢出
+  int64_t sum = 0;
+
+  // 使用整数运算避免浮点转换问题
   for (size_t i = 0; i < qty; i++) {
-    res += static_cast<float>(pVect1[i]) * static_cast<float>(pVect2[i]);
+    sum += static_cast<int32_t>(pVect1[i]) * static_cast<int32_t>(pVect2[i]);
   }
-  return res;
+
+  // 最后转换为浮点数
+  return static_cast<float>(sum);
 }
 }  // namespace ref
 
