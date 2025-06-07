@@ -17,9 +17,6 @@ using namespace deepsearch::searcher;
 
 using Catch::Approx;
 
-LogConfig logConfig;
-LoggerGuard logger_guard(logConfig);
-
 class SearcherTestFixture {
  public:
   SearcherTestFixture() : dim_(64), n_(1000), k_(10) {
@@ -80,6 +77,7 @@ class SearcherTestFixture {
   std::vector<float> data_;
   std::vector<float> queries_;
   graph::Graph graph_;
+  LoggerGuard logger_guard;
 };
 
 TEST_CASE_METHOD(SearcherTestFixture, "Basic Searcher functionality",
