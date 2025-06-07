@@ -158,14 +158,47 @@ class BuildExt(build_ext):
             if not self.openmp_library_dir:
                 self.openmp_library_dir = '/opt/homebrew/opt/libomp/lib'
 
+    def get_arch_flags(self):
+        """获取适合当前平台的指令集优化标志"""
+        # 用户自定义标志优先
+        custom_flags = os.environ.get('ARCH_FLAGS', '')
+        if custom_flags:
+            return custom_flags.split()
+
+        # 默认架构优化标志
+        if IS_WINDOWS:
+            # Windows 使用通用 SSE4.2 优化
+            return ['/arch:AVX2']  # MSVC 的 AVX2 选项
+
+        # Linux/macOS intel 的优化标志
+        flags = [
+            '-msse3', '-msse4.1', '-msse4.2',  # 确保 SSE3/4 支持
+            '-mavx', '-mfma',  # AVX 和 FMA 指令
+            '-mavx2',  # AVX2 指令集
+            '-mbmi2', '-mpopcnt'  # 位操作和人口计数
+        ]
+
+        # 针对 macOS ARM 的特殊处理
+        if IS_MACOS and platform.machine() == 'arm64':
+            flags = ['-mcpu=apple-m1', '-mtune=native']
+
+        return flags
+
     def build_extensions(self):
         cpp_flag = '/std:c++17' if IS_WINDOWS else '-std=c++17'
+
+        # 获取指令集优化标志
+        arch_flags = self.get_arch_flags()
 
         # 获取CMake构建的第三方库信息
         cmake_includes, cmake_lib_dirs, cmake_libs, extra_objects = get_cmake_target_info()
 
         for ext in self.extensions:
             ext.extra_compile_args = [cpp_flag]
+
+            # 添加指令集优化标志
+            ext.extra_compile_args.extend(arch_flags)
+
             ext.include_dirs.extend([
                 pybind11.get_include(),
                 np.get_include(),
