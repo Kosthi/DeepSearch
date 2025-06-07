@@ -120,7 +120,7 @@ void Searcher<QuantizerType>::Search(const float* q, int k, int* dst) const {
   SearchImpl(pool, quantizer_);
 
   // 使用量化器重排序获得最终结果
-  quantizer_->reorder(pool, q, dst, k);
+  quantizer_->reorder(pool, dst, k);
 }
 
 template <typename QuantizerType>

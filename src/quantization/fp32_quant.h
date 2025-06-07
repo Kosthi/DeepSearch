@@ -40,8 +40,7 @@ class FP32Quantizer : public QuantizerBase<float, float> {
 
   // 重排序接口，模板函数定义在头文件中
   template <typename Pool>
-  inline void reorder(const Pool& pool, const float* query, int* dst,
-                      int k) const {
+  inline void reorder(const Pool& pool, int* dst, int k) const {
     for (int i = 0; i < k; ++i) {
       dst[i] = pool.id(i);
     }

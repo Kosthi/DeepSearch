@@ -33,7 +33,7 @@ struct LogConfig {
   std::string log_pattern = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v";
   size_t max_file_size = 10 * 1024 * 1024;  // 10MB
   size_t max_files = 5;
-  bool async_logging = false;
+  bool async_logging = true;
   size_t async_queue_size = 8192;
   size_t thread_pool_size = 1;
 };

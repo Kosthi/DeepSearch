@@ -14,6 +14,7 @@ using namespace deepsearch::quantization;
 
 template <typename T>
 void load_fvecs(const char* filename, T*& p, int64_t& n, int64_t& dim) {
+  auto logger = LogManager::instance().get_logger("load_fvecs");
   std::ifstream fs(filename, std::ios::binary);
   int dim_32;
   fs.read((char*)&dim_32, 4);
@@ -21,8 +22,7 @@ void load_fvecs(const char* filename, T*& p, int64_t& n, int64_t& dim) {
   fs.seekg(0, std::ios::end);
   n = fs.tellg() / (4 + dim * sizeof(T));
   fs.seekg(0, std::ios::beg);
-  std::cout << "Read path: " << filename << ", nx: " << n << ", dim: " << dim
-            << std::endl;
+  logger->info("Read path: {}, nx: {}, dim: {}", filename, n, dim);
   p = reinterpret_cast<T*>(aligned_alloc(64, n * dim * sizeof(T)));
   for (int i = 0; i < n; ++i) {
     fs.seekg(4, std::ios::cur);
@@ -94,10 +94,12 @@ int main(int argc, char** argv) {
   graph.load(graph_path);
 
   // create quantizer
-  auto quantizer = std::make_unique<FP32Quantizer>(DistanceType::L2, dim);
+  auto fp32_quantizer = std::make_unique<FP32Quantizer>(DistanceType::L2, dim);
+  auto sq4_quantizer = std::make_unique<SQ4Quantizer>(
+      DistanceType::L2, dim, std::move(fp32_quantizer));
   // create searcher
   auto searcher =
-      SearcherFactory::create<FP32Quantizer>(graph, std::move(quantizer));
+      SearcherFactory::create<SQ4Quantizer>(graph, std::move(sq4_quantizer));
   searcher->SetData(base, N, dim);
   searcher->Optimize(num_threads);
   searcher->SetEf(search_ef);

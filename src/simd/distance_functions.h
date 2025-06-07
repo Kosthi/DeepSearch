@@ -64,6 +64,8 @@ float IPSQ8_avx512(const void* pVect1v, const void* pVect2v, size_t qty);
 
 // NEON implementations
 float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty);
+float L2SqrSQ4_neon(const void* pVect1v, const void* pVect2v, size_t qty);
+float L2SqrSQ8_neon(const void* pVect1v, const void* pVect2v, size_t qty);
 float IP_neon(const float* pVect1, const float* pVect2, size_t qty);
 }  // namespace detail
 

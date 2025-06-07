@@ -45,8 +45,8 @@ void initializeSIMDFunctions() {
     case SIMDCapabilities::Level::NEON:
       L2Sqr = detail::L2Sqr_neon;
       IP = detail::IP_neon;
-      L2SqrSQ8_ext = L2SqrSQ8_ref;
-      L2SqrSQ4 = L2SqrSQ4_ref;
+      L2SqrSQ8_ext = detail::L2SqrSQ8_neon;
+      L2SqrSQ4 = detail::L2SqrSQ4_neon;
       IPSQ8_ext = IPSQ8_ref;
       break;
 
@@ -515,6 +515,157 @@ float L2Sqr_neon(const float* pVect1, const float* pVect2, size_t qty) {
   }
 
   return res;
+}
+
+float L2SqrSQ4_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
+  const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
+  const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
+
+  size_t qty_bytes = (qty + 1) / 2;
+  int32_t sum = 0;
+
+  // 处理主循环（每次处理16字节=32个4-bit数）
+  size_t i = 0;
+  const size_t step = 16;
+  if (qty_bytes >= step) {
+    // 初始化32位累加器（4个向量寄存器）
+    int32x4_t acc0 = vdupq_n_s32(0);
+    int32x4_t acc1 = vdupq_n_s32(0);
+    int32x4_t acc2 = vdupq_n_s32(0);
+    int32x4_t acc3 = vdupq_n_s32(0);
+
+    for (; i <= qty_bytes - step; i += step) {
+      // 加载16字节数据
+      uint8x16_t vec0 = vld1q_u8(pVect1 + i);
+      uint8x16_t vec1 = vld1q_u8(pVect2 + i);
+
+      // 分离低4位和高4位
+      uint8x16_t low0 = vandq_u8(vec0, vdupq_n_u8(0x0F));
+      uint8x16_t high0 = vshrq_n_u8(vec0, 4);
+      uint8x16_t low1 = vandq_u8(vec1, vdupq_n_u8(0x0F));
+      uint8x16_t high1 = vshrq_n_u8(vec1, 4);
+
+      // 扩展为16位整数
+      uint16x8_t low0_low = vmovl_u8(vget_low_u8(low0));
+      uint16x8_t low0_high = vmovl_u8(vget_high_u8(low0));
+      uint16x8_t high0_low = vmovl_u8(vget_low_u8(high0));
+      uint16x8_t high0_high = vmovl_u8(vget_high_u8(high0));
+
+      uint16x8_t low1_low = vmovl_u8(vget_low_u8(low1));
+      uint16x8_t low1_high = vmovl_u8(vget_high_u8(low1));
+      uint16x8_t high1_low = vmovl_u8(vget_low_u8(high1));
+      uint16x8_t high1_high = vmovl_u8(vget_high_u8(high1));
+
+      // 计算差值（转换为有符号）
+      int16x8_t diff_low0 = vsubq_s16(vreinterpretq_s16_u16(low0_low),
+                                      vreinterpretq_s16_u16(low1_low));
+      int16x8_t diff_low1 = vsubq_s16(vreinterpretq_s16_u16(low0_high),
+                                      vreinterpretq_s16_u16(low1_high));
+      int16x8_t diff_high0 = vsubq_s16(vreinterpretq_s16_u16(high0_low),
+                                       vreinterpretq_s16_u16(high1_low));
+      int16x8_t diff_high1 = vsubq_s16(vreinterpretq_s16_u16(high0_high),
+                                       vreinterpretq_s16_u16(high1_high));
+
+      // 计算平方
+      int16x8_t sq_low0 = vmulq_s16(diff_low0, diff_low0);
+      int16x8_t sq_low1 = vmulq_s16(diff_low1, diff_low1);
+      int16x8_t sq_high0 = vmulq_s16(diff_high0, diff_high0);
+      int16x8_t sq_high1 = vmulq_s16(diff_high1, diff_high1);
+
+      // 合并高低4位的平方和
+      int16x8_t total_sq0 = vaddq_s16(sq_low0, sq_high0);
+      int16x8_t total_sq1 = vaddq_s16(sq_low1, sq_high1);
+
+      // 扩展为32位并累加
+      acc0 = vaddq_s32(acc0, vmovl_s16(vget_low_s16(total_sq0)));
+      acc1 = vaddq_s32(acc1, vmovl_s16(vget_high_s16(total_sq0)));
+      acc2 = vaddq_s32(acc2, vmovl_s16(vget_low_s16(total_sq1)));
+      acc3 = vaddq_s32(acc3, vmovl_s16(vget_high_s16(total_sq1)));
+    }
+
+    // 合并累加器
+    int32x4_t sum32 = vaddq_s32(acc0, acc1);
+    sum32 = vaddq_s32(sum32, acc2);
+    sum32 = vaddq_s32(sum32, acc3);
+
+    // 水平求和
+    int32x2_t sum2 = vadd_s32(vget_low_s32(sum32), vget_high_s32(sum32));
+    sum += vget_lane_s32(sum2, 0) + vget_lane_s32(sum2, 1);
+  }
+
+  // 处理尾部剩余字节（标量处理）
+  for (; i < qty_bytes; i++) {
+    uint8_t b1 = pVect1[i], b2 = pVect2[i];
+    int d1 = (b1 & 0x0F) - (b2 & 0x0F);
+    int d2 = (b1 >> 4) - (b2 >> 4);
+    sum += d1 * d1 + d2 * d2;
+  }
+
+  return static_cast<float>(sum);
+}
+
+float L2SqrSQ8_neon(const void* pVect1v, const void* pVect2v, size_t qty) {
+  const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
+  const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
+
+  float32x4_t acc = vdupq_n_f32(0.0f);  // 浮点累加器初始化为0
+  size_t i = 0;
+
+  // 每次处理16个元素（128位）
+  const size_t step = 16;
+  if (qty >= step) {
+    for (; i <= qty - step; i += step) {
+      // 加载16个字节数据
+      uint8x16_t v1 = vld1q_u8(pVect1 + i);
+      uint8x16_t v2 = vld1q_u8(pVect2 + i);
+
+      // 将8位无符号整数扩展为16位有符号整数
+      uint16x8_t v1_low = vmovl_u8(vget_low_u8(v1));
+      uint16x8_t v1_high = vmovl_u8(vget_high_u8(v1));
+      uint16x8_t v2_low = vmovl_u8(vget_low_u8(v2));
+      uint16x8_t v2_high = vmovl_u8(vget_high_u8(v2));
+
+      // 计算差值（转为有符号整数）
+      int16x8_t diff_low = vsubq_s16(vreinterpretq_s16_u16(v1_low),
+                                     vreinterpretq_s16_u16(v2_low));
+      int16x8_t diff_high = vsubq_s16(vreinterpretq_s16_u16(v1_high),
+                                      vreinterpretq_s16_u16(v2_high));
+
+      // 计算平方并扩展为32位整数
+      int32x4_t sq_low_low =
+          vmull_s16(vget_low_s16(diff_low), vget_low_s16(diff_low));
+      int32x4_t sq_low_high =
+          vmull_s16(vget_high_s16(diff_low), vget_high_s16(diff_low));
+      int32x4_t sq_high_low =
+          vmull_s16(vget_low_s16(diff_high), vget_low_s16(diff_high));
+      int32x4_t sq_high_high =
+          vmull_s16(vget_high_s16(diff_high), vget_high_s16(diff_high));
+
+      // 将32位整数平方值转为浮点数
+      float32x4_t fsq0 = vcvtq_f32_s32(sq_low_low);
+      float32x4_t fsq1 = vcvtq_f32_s32(sq_low_high);
+      float32x4_t fsq2 = vcvtq_f32_s32(sq_high_low);
+      float32x4_t fsq3 = vcvtq_f32_s32(sq_high_high);
+
+      // 累加到浮点累加器
+      acc = vaddq_f32(acc, fsq0);
+      acc = vaddq_f32(acc, fsq1);
+      acc = vaddq_f32(acc, fsq2);
+      acc = vaddq_f32(acc, fsq3);
+    }
+  }
+
+  // 水平求和
+  float32x2_t sum2 = vadd_f32(vget_low_f32(acc), vget_high_f32(acc));
+  float sum = vget_lane_f32(sum2, 0) + vget_lane_f32(sum2, 1);
+
+  // 处理尾部剩余元素（标量处理）
+  for (; i < qty; i++) {
+    float diff = static_cast<float>(pVect1[i]) - static_cast<float>(pVect2[i]);
+    sum += diff * diff;
+  }
+
+  return sum;
 }
 
 float IP_neon(const float* pVect1, const float* pVect2, size_t qty) {

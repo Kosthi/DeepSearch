@@ -12,7 +12,7 @@ namespace deepsearch {
 namespace quantization {
 
 SQ4Quantizer::SQ4Quantizer(core::DistanceType distanceType, size_t dim,
-                           std::shared_ptr<FP32Quantizer> reorder_quantizer)
+                           std::unique_ptr<FP32Quantizer> reorder_quantizer)
     : d(dim),
       d_align(do_align(dim, kAlign)),
       reorder_quantizer_(std::move(reorder_quantizer)) {
@@ -104,6 +104,9 @@ float SQ4Quantizer::compute_distance(const uint8_t* a, const uint8_t* b) const {
 void SQ4Quantizer::encode_query(const float* query) {
   ensure_thread_query_initialized();
   encode(query, get_query().get());
+  if (reorder_quantizer_) {
+    reorder_quantizer_->encode_query(query);
+  }
 }
 
 float SQ4Quantizer::compute_query_distance(size_t index) const {
