@@ -83,7 +83,7 @@ TEST_CASE_METHOD(DistanceFunctionTestFixture, "L2 Distance Functions",
   SECTION("L2Sqr vs L2SqrRef consistency") {
     // 测试优化版本与参考实现的一致性
     float simd_result = L2Sqr(data_a_.data(), data_b_.data(), dim_);
-    float ref_result = L2SqrRef(data_a_.data(), data_b_.data(), dim_);
+    float ref_result = ref::L2Sqr(data_a_.data(), data_b_.data(), dim_);
 
     REQUIRE(simd_result == Approx(ref_result).margin(1e-5f));
   }
@@ -112,7 +112,7 @@ TEST_CASE_METHOD(DistanceFunctionTestFixture, "L2 Distance Functions",
     for (size_t size : test_sizes) {
       if (size <= data_a_.size()) {
         float simd_result = L2Sqr(data_a_.data(), data_b_.data(), size);
-        float ref_result = L2SqrRef(data_a_.data(), data_b_.data(), size);
+        float ref_result = ref::L2Sqr(data_a_.data(), data_b_.data(), size);
 
         INFO("Testing size: " << size);
         REQUIRE(simd_result == Approx(ref_result).margin(1e-5f));
@@ -126,7 +126,7 @@ TEST_CASE_METHOD(DistanceFunctionTestFixture, "IP Distance Functions",
   SECTION("IP vs IPRef consistency") {
     // 测试优化版本与参考实现的一致性
     float simd_result = IP(data_a_.data(), data_b_.data(), dim_);
-    float ref_result = IPRef(data_a_.data(), data_b_.data(), dim_);
+    float ref_result = ref::IP(data_a_.data(), data_b_.data(), dim_);
 
     REQUIRE(simd_result == Approx(ref_result).margin(1e-5f));
   }
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(DistanceFunctionTestFixture, "Cosine Distance Functions",
     float simd_result =
         CosineDistance(normalized_a_.data(), normalized_b_.data(), dim_);
     float ref_result =
-        CosineDistanceRef(normalized_a_.data(), normalized_b_.data(), dim_);
+        ref::CosineDistance(normalized_a_.data(), normalized_b_.data(), dim_);
 
     REQUIRE(simd_result == Approx(ref_result).margin(1e-5f));
   }

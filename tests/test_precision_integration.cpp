@@ -144,12 +144,12 @@ TEST_CASE_METHOD(PrecisionTestFixture, "Quantizer Precision Test",
   }
 
   SECTION("SQ8 Quantizer Test") {
-    auto fp32_quantizer = std::make_shared<quantization::FP32Quantizer>(
+    auto fp32_quantizer = std::make_unique<quantization::FP32Quantizer>(
         core::DistanceType::IP, DIM);
     fp32_quantizer->train(normalized_data_.data(), NUM_POINTS, DIM);
 
     auto quantizer = std::make_unique<quantization::SQ8Quantizer>(
-        core::DistanceType::IP, DIM, fp32_quantizer);
+        core::DistanceType::IP, DIM, std::move(fp32_quantizer));
 
     // 训练量化器
     quantizer->train(normalized_data_.data(), NUM_POINTS, DIM);

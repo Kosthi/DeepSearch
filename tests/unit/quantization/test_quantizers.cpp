@@ -219,8 +219,8 @@ TEST_CASE_METHOD(QuantizerTestFixture, "Quantizer with reorderer",
                  "[quantization][reorder]") {
   SECTION("SQ8 with FP32 reorderer") {
     auto fp32_reorderer =
-        std::make_shared<FP32Quantizer>(DistanceType::L2, dim_);
-    SQ8Quantizer quantizer(DistanceType::L2, dim_, fp32_reorderer);
+        std::make_unique<FP32Quantizer>(DistanceType::L2, dim_);
+    SQ8Quantizer quantizer(DistanceType::L2, dim_, std::move(fp32_reorderer));
 
     // 训练量化器和重排器
     quantizer.train(data_.data(), n_, dim_);
@@ -244,7 +244,7 @@ TEST_CASE_METHOD(QuantizerTestFixture, "Quantizer with reorderer",
     }
 
     std::vector<int> reordered_ids(pool.size());
-    quantizer.reorder(pool, query_.data(), reordered_ids.data(), pool.size());
+    quantizer.reorder(pool, reordered_ids.data(), pool.size());
 
     // 验证重排序结果
     REQUIRE(reordered_ids.size() == pool.size());

@@ -67,6 +67,10 @@ TEST_CASE_METHOD(MainFlowTestFixture,
                  "Main Flow Integration Test - L2 Distance",
                  "[integration][main_flow]") {
   SECTION("Complete Build and Search Flow") {
+    // 0. 配置日志
+    LogConfig logConfig;
+    LoggerGuard logger_guard(logConfig);
+
     // 1. 按照main.cpp的流程创建builder配置
     BuilderConfig config;
     config.M = M;
@@ -236,6 +240,10 @@ TEST_CASE_METHOD(MainFlowTestFixture,
         normalized_data[i * DIM + j] = data_[i * DIM + j] / norm;
       }
     }
+
+    // 0. 配置日志
+    LogConfig logConfig;
+    LoggerGuard logger_guard(logConfig);
 
     // 使用IP距离重复相同的测试流程
     BuilderConfig config;
