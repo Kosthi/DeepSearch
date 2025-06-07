@@ -17,6 +17,9 @@ using namespace deepsearch::searcher;
 
 using Catch::Approx;
 
+LogConfig logConfig;
+LoggerGuard logger_guard(logConfig);
+
 class SearcherTestFixture {
  public:
   SearcherTestFixture() : dim_(64), n_(1000), k_(10) {

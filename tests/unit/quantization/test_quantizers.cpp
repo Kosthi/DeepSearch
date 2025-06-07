@@ -228,6 +228,7 @@ TEST_CASE_METHOD(QuantizerTestFixture, "Quantizer with reorderer",
     // 量化查询向量
     std::vector<uint8_t> encoded_query(quantizer.code_size());
     quantizer.encode(query_.data(), encoded_query.data());
+    quantizer.encode_query(query_.data());
 
     // 创建候选池
     deepsearch::searcher::LinearPool<float> pool(n_,
