@@ -181,8 +181,6 @@ class BuildExt(build_ext):
                 return [
                     '-march=armv8-a',  # ARMv8-A 基础指令集
                     '-mtune=native',  # 针对当前 CPU 优化
-                    '-mfpu=neon',  # 启用 NEON SIMD
-                    '-mfp16-format=ieee'  # 半精度浮点支持
                 ]
 
         # x86 架构处理
