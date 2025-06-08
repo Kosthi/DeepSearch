@@ -167,20 +167,30 @@ class BuildExt(build_ext):
 
         # 默认架构优化标志
         if IS_WINDOWS:
-            # Windows 使用通用 SSE4.2 优化
             return ['/arch:AVX2']  # MSVC 的 AVX2 选项
 
-        # Linux/macOS intel 的优化标志
-        flags = [
-            '-msse3', '-msse4.1', '-msse4.2',  # 确保 SSE3/4 支持
-            '-mavx', '-mfma',  # AVX 和 FMA 指令
-            '-mavx2',  # AVX2 指令集
-            '-mbmi2', '-mpopcnt'  # 位操作和人口计数
-        ]
+        flags = []
+        machine = platform.machine().lower()
 
-        # 针对 macOS ARM 的特殊处理
-        if IS_MACOS and platform.machine() == 'arm64':
-            flags = ['-mcpu=apple-m1', '-mtune=native']
+        # ARM 架构处理 (包括 Ubuntu ARM 和 macOS ARM)
+        if 'arm' in machine or 'aarch' in machine:
+            if IS_MACOS:
+                return ['-mcpu=apple-m1', '-mtune=native']
+            else:
+                # Ubuntu ARM 的优化标志
+                return [
+                    '-march=armv8-a',  # ARMv8-A 基础指令集
+                    '-mtune=native',  # 针对当前 CPU 优化
+                    '-mfpu=neon',  # 启用 NEON SIMD
+                    '-mfp16-format=ieee'  # 半精度浮点支持
+                ]
+
+        # x86 架构处理
+        flags.extend([
+            '-msse3', '-msse4.1', '-msse4.2',
+            '-mavx', '-mfma', '-mavx2',
+            '-mbmi2', '-mpopcnt'
+        ])
 
         return flags
 
