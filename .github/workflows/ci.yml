@@ -25,7 +25,7 @@ jobs:
             runner: ubuntu-latest
           - os: ubuntu
             arch: arm64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04-arm
     # disable now
     #          - os: windows
     #            arch: x86_64
@@ -51,16 +51,8 @@ jobs:
         if: matrix.os == 'windows'
         run: choco install cmake python --installargs 'ADD_CMAKE_TO_PATH=System' -y
 
-      - name: Build (x86_64)
-        if: matrix.arch == 'x86_64'
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build . --config Release
-
-      - name: Build (arm64, cross-compile)
-        if: matrix.arch == 'arm64' && matrix.os == 'ubuntu'
+      - name: Build
+        if: matrix.arch != 'arm64' || matrix.os != 'macos'
         run: |
           mkdir build
           cd build
@@ -75,8 +67,12 @@ jobs:
           cmake .. -DCMAKE_OSX_ARCHITECTURES=arm64
           cmake --build . --config Release
 
+      - name: Run C++ tests
+        run: |
+          cd build
+          ctest --output-on-failure -C Release
+
       - name: Run main test
-        # if: matrix.arch != 'arm64' || matrix.os != 'ubuntu'
         run: |
           bash test.sh
 
