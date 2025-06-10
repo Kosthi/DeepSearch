@@ -10,7 +10,7 @@
 namespace deepsearch {
 namespace distance {
 
-using quantization::QuantizerType;
+using deepsearch::QuantizerType;
 
 // 模板化的L2距离计算器
 template <typename T, QuantizerType Quantizer = QuantizerType::FP32>
@@ -125,19 +125,19 @@ class CosineDistanceComputer : public core::DistanceComputerTemplate<T> {
 class DistanceComputerFactory {
  public:
   static std::vector<std::string> getSupportedTypes();
-  static bool isTypeSupported(core::DistanceType type);
+  static bool isTypeSupported(DistanceType type);
 
   // 原有方法保持兼容
   template <typename T>
   static std::unique_ptr<core::DistanceComputerTemplate<T>> create(
-      core::DistanceType type, size_t dim) {
+      DistanceType type, size_t dim) {
     return create<T>(type, dim, QuantizerType::FP32);
   }
 
   // 新的模板化工厂方法
   template <typename T>
   static std::unique_ptr<core::DistanceComputerTemplate<T>> create(
-      core::DistanceType type, size_t dim, QuantizerType quant_type) {
+      DistanceType type, size_t dim, QuantizerType quant_type) {
     switch (quant_type) {
       case QuantizerType::SQ8:
         return createWithQuant<T, QuantizerType::SQ8>(type, dim);
@@ -152,13 +152,13 @@ class DistanceComputerFactory {
  private:
   template <typename T, QuantizerType Quantizer>
   static std::unique_ptr<core::DistanceComputerTemplate<T>> createWithQuant(
-      core::DistanceType type, size_t dim) {
+      DistanceType type, size_t dim) {
     switch (type) {
-      case core::DistanceType::L2:
+      case DistanceType::L2:
         return std::make_unique<L2DistanceComputer<T, Quantizer>>(dim);
-      case core::DistanceType::IP:
+      case DistanceType::IP:
         return std::make_unique<IPDistanceComputer<T, Quantizer>>(dim);
-      case core::DistanceType::COSINE:
+      case DistanceType::COSINE:
         return std::make_unique<CosineDistanceComputer<T>>(dim);
       default:
         throw std::invalid_argument("Unsupported distance type");

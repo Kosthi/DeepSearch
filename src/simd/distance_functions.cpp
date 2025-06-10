@@ -145,21 +145,36 @@ float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
   float res = 0;
-  size_t qty_bytes = (qty + 1) / 2;
+  size_t fullBytes = qty / 2;  // 每个字节包含两个完整的4-bit数值
+  size_t trailing = qty % 2;   // 检查是否有单个4-bit数值需要处理
 
-  for (size_t i = 0; i < qty_bytes; i++) {
+  // 处理完整的字节（每个字节包含两个4-bit数值）
+  for (size_t i = 0; i < fullBytes; i++) {
     uint8_t byte1 = pVect1[i];
     uint8_t byte2 = pVect2[i];
 
-    float val1_low = static_cast<float>(byte1 & 0x0F);
-    float val1_high = static_cast<float>((byte1 >> 4) & 0x0F);
-    float val2_low = static_cast<float>(byte2 & 0x0F);
-    float val2_high = static_cast<float>((byte2 >> 4) & 0x0F);
+    int val1_low = (byte1 & 0x0F);
+    int val1_high = ((byte1 >> 4) & 0x0F);
+    int val2_low = (byte2 & 0x0F);
+    int val2_high = ((byte2 >> 4) & 0x0F);
 
-    float diff_low = val1_low - val2_low;
-    float diff_high = val1_high - val2_high;
+    int diff_low = val1_low - val2_low;
+    int diff_high = val1_high - val2_high;
 
     res += diff_low * diff_low + diff_high * diff_high;
+  }
+
+  // 处理末尾单独的4-bit数值（当qty为奇数时）
+  if (trailing) {
+    uint8_t byte1 = pVect1[fullBytes];
+    uint8_t byte2 = pVect2[fullBytes];
+
+    // 仅处理高4位，低4位忽略
+    int val1_high = ((byte1 >> 4) & 0x0F);
+    int val2_high = ((byte2 >> 4) & 0x0F);
+
+    int diff_high = val1_high - val2_high;
+    res += diff_high * diff_high;
   }
 
   return res;
@@ -552,7 +567,7 @@ float L2Sqr(const float* pVect1, const float* pVect2, size_t qty) {
 }
 
 float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
-#ifdef __ARM_NEON
+#ifdef __ARM_NEONL
   const uint8_t* pVect1 = static_cast<const uint8_t*>(pVect1v);
   const uint8_t* pVect2 = static_cast<const uint8_t*>(pVect2v);
 
@@ -638,7 +653,7 @@ float L2SqrSQ4(const void* pVect1v, const void* pVect2v, size_t qty) {
 
   return static_cast<float>(sum);
 #else
-  return ref::L2SqrSQ4(pVect1v, pVect1v, qty);
+  return ref::L2SqrSQ4(pVect1v, pVect2v, qty);
 #endif
 }
 

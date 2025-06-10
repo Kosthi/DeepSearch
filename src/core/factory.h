@@ -15,16 +15,13 @@ namespace core {
 template <typename T>
 class SearchEngineFactory {
  public:
-  enum class AlgorithmType { HNSW, BRUTEFORCE, GRAPH_SEARCH };
+  enum class AlgorithmType { HNSW, BRUTEFORCE, GRAPH_SEARCH, IVF };
 
   enum class MetricType { L2, IP, COSINE };
 
   static std::unique_ptr<SearchEngineTemplate<T>> create(
       AlgorithmType algo_type, MetricType metric_type,
       const std::unordered_map<std::string, std::any>& params = {});
-
-  static std::string algorithm_name(AlgorithmType type);
-  static std::string metric_name(MetricType type);
 };
 
 // 量化器工厂

@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "common.h"
 #include "core/interfaces.h"
 #include "fp32_quant.h"
 #include "neighbor.h"
@@ -21,7 +22,7 @@ class SQ8Quantizer : public QuantizerBase<float, uint8_t> {
 
   // 修改构造函数，传入FP32量化器作为精排器
   explicit SQ8Quantizer(
-      core::DistanceType distanceType, size_t dim,
+      DistanceType distanceType, size_t dim,
       std::unique_ptr<FP32Quantizer> reorder_quantizer = nullptr);
 
   ~SQ8Quantizer() override;

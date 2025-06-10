@@ -5,11 +5,12 @@
 
 #include "allocator.h"
 #include "distance/computers.h"
+#include "prefetch.h"
 
 namespace deepsearch {
 namespace quantization {
 
-FP32Quantizer::FP32Quantizer(core::DistanceType distanceType, size_t dim)
+FP32Quantizer::FP32Quantizer(DistanceType distanceType, size_t dim)
     : d(dim), d_align(do_align(dim, kAlign)) {
   // 使用FP32模板特化的距离计算器
   distance_computer_ = distance::DistanceComputerFactory::create<float>(

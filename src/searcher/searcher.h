@@ -1,16 +1,11 @@
 #pragma once
 
-#include <cstring>
-#include <limits>
-#include <memory>
-#include <random>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "builder/builder.h"
 #include "common.h"
-#include "graph/builder.h"
-#include "graph/graph.h"
 #include "neighbor.h"
 #include "quantization/quantizer.h"
 #include "utils.h"
@@ -24,7 +19,6 @@ class FP32Quantizer;
 namespace deepsearch {
 namespace searcher {
 
-using namespace graph;
 using namespace quantization;
 
 // 基础搜索器接口
@@ -55,9 +49,8 @@ class Searcher : public SearcherBase {
   // 从图构建器创建
   template <typename T>
   static std::unique_ptr<Searcher<QuantizerType>> from_builder(
-      std::unique_ptr<deepsearch::graph::GraphBuilder<T>> builder,
-      const T* data, size_t n, size_t dim,
-      std::unique_ptr<QuantizerType> quantizer) {
+      std::unique_ptr<builder::Builder<T>> builder, const T* data, size_t n,
+      size_t dim, std::unique_ptr<QuantizerType> quantizer) {
     auto graph = builder->build(data, n, dim);
     return std::make_unique<Searcher<QuantizerType>>(std::move(graph),
                                                      std::move(quantizer));
@@ -162,15 +155,15 @@ class SearcherFactory {
 
   // 便捷创建方法
   static std::unique_ptr<FP32Searcher> createFP32(const Graph& graph,
-                                                  core::DistanceType metric,
+                                                  DistanceType metric,
                                                   size_t dimension);
 
   static std::unique_ptr<SQ8Searcher> createSQ8(const Graph& graph,
-                                                core::DistanceType metric,
+                                                DistanceType metric,
                                                 size_t dimension);
 
   static std::unique_ptr<SQ4Searcher> createSQ4(const Graph& graph,
-                                                core::DistanceType metric,
+                                                DistanceType metric,
                                                 size_t dimension);
 };
 

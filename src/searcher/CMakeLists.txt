@@ -25,7 +25,6 @@ target_link_libraries(deepsearch_searcher
         deepsearch_core
         deepsearch_quantization
         deepsearch_simd
-        deepsearch_graph
 )
 
 # 设置C++标准

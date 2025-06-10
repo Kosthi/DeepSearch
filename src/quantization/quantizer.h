@@ -3,13 +3,11 @@
 #include <string>
 #include <vector>
 
-#include "core/interfaces.h"
-
 namespace deepsearch {
 namespace quantization {
 
 // 量化器类型枚举
-enum class QuantizerType { FP32, SQ8, SQ4 };
+// enum class QuantizerType { FP32, SQ8, SQ4 };
 
 // 量化器基类接口
 template <typename InputType, typename CodeType>
@@ -74,29 +72,12 @@ template <typename InputType, typename CodeType>
 class QuantizerFactory {
  public:
   static std::unique_ptr<QuantizerBase<InputType, CodeType>> create(
-      QuantizerType type, core::DistanceType distanceType, size_t dim);
+      QuantizerType type, DistanceType distanceType, size_t dim);
 
   static std::vector<QuantizerType> get_supported_types();
   static bool is_type_supported(QuantizerType type);
   static std::string type_name(QuantizerType type);
 };
-
-// // 量化器计算机接口（用于搜索）
-// template <typename QuantizerType>
-// class QuantizerComputer {
-//  public:
-//   using dist_type = float;
-//
-//   QuantizerComputer(const QuantizerType& quantizer, const float* query);
-//   ~QuantizerComputer();
-//
-//   dist_type operator()(int u) const;
-//   void prefetch(int u, int lines) const;
-//
-//  private:
-//   const QuantizerType& quantizer_;
-//   float* aligned_query_;
-// };
 
 }  // namespace quantization
 }  // namespace deepsearch

@@ -1,17 +1,17 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
+#include "index/graph_index.h"
 
 namespace deepsearch {
 
-enum class Metric {
-  L2,
-  IP,
-};
+enum class IndexType { BRUTEFORCE, HNSW, IVF };
 
-inline std::unordered_map<std::string, Metric> metric_map = {
-    {"L2", Metric::L2}, {"IP", Metric::IP}};
+enum class QuantizerType { FP32, SQ4, SQ8, PQ };
+
+enum class DistanceType { L2, IP, COSINE };
+
+// 类型别名保持兼容性
+using Graph = index::DenseGraph<int>;
 
 inline constexpr size_t upper_div(size_t x, size_t y) {
   return (x + y - 1) / y;

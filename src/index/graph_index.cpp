@@ -1,13 +1,15 @@
-#include "graph.h"
+#include "graph_index.h"
 
-#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 
+#include "algorithm/hnsw_wrapper.h"
+#include "prefetch.h"
+
 namespace deepsearch {
-namespace graph {
+namespace index {
 
 // 构造函数
 template <typename node_t>
@@ -270,7 +272,7 @@ void DenseGraph<node_t>::load(const std::string& filename) {
 
   cleanup();
 
-  initializer_ = std::make_unique<HnswInitializer>(1000000, 16);
+  initializer_ = std::make_unique<algorithm::HnswWrapper>(1000000, 16);
   initializer_->load(file);
 
   // 读取基本信息
@@ -380,7 +382,8 @@ void DenseGraph<node_t>::copy_from(const DenseGraph& other) {
   if (other.initializer_) {
     // 注意：这里需要根据 HnswInitializer 的具体实现来决定如何拷贝
     // 暂时设为 nullptr，可能需要实现 clone 方法
-    initializer_ = std::make_unique<HnswInitializer>(*other.initializer_);
+    initializer_ =
+        std::make_unique<algorithm::HnswWrapper>(*other.initializer_);
   }
 }
 
@@ -388,5 +391,5 @@ void DenseGraph<node_t>::copy_from(const DenseGraph& other) {
 template class DenseGraph<int>;
 template class DenseGraph<uint32_t>;
 
-}  // namespace graph
+}  // namespace index
 }  // namespace deepsearch

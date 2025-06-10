@@ -1,7 +1,7 @@
 #pragma once
 
-#include <core/interfaces.h>
-
+#include "common.h"
+#include "core/interfaces.h"
 #include "quantizer.h"
 
 namespace deepsearch {
@@ -13,7 +13,7 @@ class FP32Quantizer : public QuantizerBase<float, float> {
   constexpr static int kAlign = 16;
 
   FP32Quantizer() = default;
-  explicit FP32Quantizer(core::DistanceType metric, size_t dim);
+  explicit FP32Quantizer(DistanceType metric, size_t dim);
   ~FP32Quantizer() override;
 
   // 实现基类接口

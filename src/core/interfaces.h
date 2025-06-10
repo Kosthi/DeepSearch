@@ -11,12 +11,12 @@ namespace deepsearch {
 namespace core {
 
 // 距离类型枚举
-enum class DistanceType {
-  L2,
-  IP,  // Inner Product
-  COSINE,
-  HAMMING
-};
+// enum class DistanceType {
+//   L2,
+//   IP,  // Inner Product
+//   COSINE,
+//   HAMMING
+// };
 
 // 搜索结果结构
 struct SearchResult {

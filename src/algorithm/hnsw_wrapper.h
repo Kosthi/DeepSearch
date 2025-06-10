@@ -3,19 +3,21 @@
 #include <fstream>
 #include <vector>
 
-namespace deepsearch {
+#include "allocator.h"
 
-struct HnswInitializer {
+namespace deepsearch {
+namespace algorithm {
+
+struct HnswWrapper {
   int N, K;
   int ep;
   std::vector<int> levels;
   std::vector<std::vector<int, align_alloc<int>>> lists;
-  HnswInitializer() = default;
+  HnswWrapper() = default;
 
-  explicit HnswInitializer(int n, int k)
-      : N(n), K(k), ep(0), levels(n), lists(n) {}
+  explicit HnswWrapper(int n, int k) : N(n), K(k), ep(0), levels(n), lists(n) {}
 
-  HnswInitializer(const HnswInitializer& rhs) = default;
+  HnswWrapper(const HnswWrapper& rhs) = default;
 
   int at(int level, int u, int i) const {
     return lists[u][(level - 1) * K + i];
@@ -78,4 +80,5 @@ struct HnswInitializer {
   }
 };
 
+}  // namespace algorithm
 }  // namespace deepsearch

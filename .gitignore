@@ -46,3 +46,4 @@ python_bindings/deepsearch.egg-info
 siftsmall
 siftsmall.tar.gz
 test.py
+word2vec

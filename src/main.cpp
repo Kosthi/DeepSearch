@@ -1,15 +1,19 @@
+#include <index/index_factory.h>
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
+#include "builder/builder_factory.h"
 #include "core/logger.h"
-#include "graph/builder_factory.h"
 #include "searcher/searcher.h"
 
+using namespace deepsearch;
+using namespace deepsearch::index;
 using namespace deepsearch::core;
-using namespace deepsearch::graph;
 using namespace deepsearch::searcher;
+using namespace deepsearch::builder;
 using namespace deepsearch::quantization;
 
 template <typename T>
@@ -73,36 +77,46 @@ int main(int argc, char** argv) {
   logger->info("Data loaded: N={}, dim={}, nq={}, gt_k={}", N, dim, nq, gt_k);
 
   BuilderConfig config;
-  config.M = 16;
-  config.ef_construction = 200;
-  config.max_elements = N;
+  auto& hnsw_config = config.graph_builder_config.hnsw_builder_config;
+  hnsw_config.M = 16;
+  hnsw_config.ef_construction = 200;
+  hnsw_config.max_elements = N;
 
   logger->info(
       "Building HNSW with config: M={}, ef_construction={}, max_elements={}",
-      config.M, config.ef_construction, config.max_elements);
+      hnsw_config.M, hnsw_config.ef_construction, hnsw_config.max_elements);
 
-  auto hnsw_builder = BuilderFactory<float>::create(
-      BuilderType::HNSW, DistanceType::L2, dim, config);
+  auto index = IndexFactory<float>::createGraphIndex(
+      IndexType::HNSW, DistanceType::L2, dim, QuantizerType::SQ4, config);
+
+  // auto hnsw_builder = BuilderFactory<float>::create(
+  //     IndexType::HNSW, DistanceType::L2, dim, config);
   if (!std::filesystem::exists(graph_path)) {
-    auto graph = hnsw_builder->build(base, N, dim);
-    graph.save(graph_path);
+    index->build(base, N, dim);
+    index->save(graph_path);
+    // auto graph = hnsw_builder->build(base, N, dim);
+    // graph.save(graph_path);
     logger->info("Graph built and saved to: {}", graph_path);
   } else {
     logger->info("Loading existing graph from: {}", graph_path);
   }
-  Graph graph;
-  graph.load(graph_path);
+  // Graph graph;
+  // graph.load(graph_path);
+  index->load(graph_path);
 
   // create quantizer
-  auto fp32_quantizer = std::make_unique<FP32Quantizer>(DistanceType::L2, dim);
-  auto sq4_quantizer = std::make_unique<SQ4Quantizer>(
-      DistanceType::L2, dim, std::move(fp32_quantizer));
+  // auto fp32_quantizer = std::make_unique<FP32Quantizer>(DistanceType::L2,
+  // dim); auto sq4_quantizer = std::make_unique<SQ4Quantizer>(
+  //     DistanceType::L2, dim, std::move(fp32_quantizer));
   // create searcher
-  auto searcher =
-      SearcherFactory::create<SQ4Quantizer>(graph, std::move(sq4_quantizer));
-  searcher->SetData(base, N, dim);
-  searcher->Optimize(num_threads);
-  searcher->SetEf(search_ef);
+  /*auto searcher =
+      SearcherFactory::create<FP32Quantizer>(graph,
+     std::move(fp32_quantizer));*/
+  // searcher->SetData(base, N, dim);
+  // searcher->Optimize(num_threads);
+  // searcher->SetEf(search_ef);
+  index->SetData(base, N, dim);
+  index->set_ef(search_ef);
 
   logger->info("Starting search with {} threads, ef={}, topk={}, iterations={}",
                num_threads, search_ef, topk, iters);
@@ -115,7 +129,7 @@ int main(int argc, char** argv) {
     auto st = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for schedule(dynamic) num_threads(num_threads)
     for (int i = 0; i < nq; ++i) {
-      searcher->Search(query + i * dim, topk, pred.data() + i * topk);
+      index->search(query + i * dim, topk, pred.data() + i * topk);
     }
     auto ed = std::chrono::high_resolution_clock::now();
     auto ela = std::chrono::duration<double>(ed - st).count();

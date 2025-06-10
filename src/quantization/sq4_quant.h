@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "common.h"
 #include "fp32_quant.h"
 #include "neighbor.h"
 #include "quantizer.h"
@@ -19,7 +20,7 @@ class SQ4Quantizer : public QuantizerBase<float, uint8_t> {
 
   // 修改构造函数，传入FP32量化器作为精排器
   explicit SQ4Quantizer(
-      core::DistanceType metric, size_t dim,
+      DistanceType metric, size_t dim,
       std::unique_ptr<FP32Quantizer> reorder_quantizer = nullptr);
 
   ~SQ4Quantizer() override;

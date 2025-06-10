@@ -31,6 +31,8 @@ add_subdirectory(src/distance)
 add_subdirectory(src/simd)
 add_subdirectory(src/quantization)
 add_subdirectory(src/searcher)
+add_subdirectory(src/index)
+add_subdirectory(src/builder)
 add_subdirectory(third_party)
 
 # 只有在开启测试时才添加测试目录
@@ -70,7 +72,8 @@ endif ()
 # 链接库
 target_link_libraries(DeepSearch
         PRIVATE
-        deepsearch_graph
+        deepsearch_index
+        deepsearch_builder
         deepsearch_searcher
         fmt::fmt
         spdlog::spdlog

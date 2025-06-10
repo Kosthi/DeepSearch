@@ -5,11 +5,12 @@
 
 #include "allocator.h"
 #include "distance/computers.h"
+#include "prefetch.h"
 
 namespace deepsearch {
 namespace quantization {
 
-SQ8Quantizer::SQ8Quantizer(core::DistanceType distanceType, size_t dim,
+SQ8Quantizer::SQ8Quantizer(DistanceType distanceType, size_t dim,
                            std::unique_ptr<FP32Quantizer> reorder_quantizer)
     : d(dim),
       d_align(do_align(dim, kAlign)),
